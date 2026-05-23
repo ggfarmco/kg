@@ -37,19 +37,16 @@ func (s *Store) InTx(ctx context.Context, fn func(ctx context.Context) error) (e
 	return fn(ctxWithTx)
 }
 
-type execer interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
-func (s *Store) conn(ctx context.Context) execer {
+func (s *Store) conn(ctx context.Context) DBTX {
 	if tx, ok := ctx.Value(txKey{}).(*sql.Tx); ok {
 		return tx
 	}
 	return s.db
 }
 
-func ExecForTest(ctx context.Context, s *Store, query string, args ...any) (sql.Result, error) {
-	return s.conn(ctx).ExecContext(ctx, query, args...)
+func (s *Store) inTxOrConn(ctx context.Context, fn func(ctx context.Context) error) error {
+	if _, ok := ctx.Value(txKey{}).(*sql.Tx); ok {
+		return fn(ctx)
+	}
+	return s.InTx(ctx, fn)
 }
