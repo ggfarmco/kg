@@ -5,6 +5,84 @@
 **Module:** `github.com/ggfarmco/kg`
 **Location:** `~/develop/norimori/ggfarmco/kg/`
 
+## Background
+
+This project originated from analyzing **Understand-Anything** — an open-source
+Claude Code plugin that combines LLM + tree-sitter to produce interactive knowledge
+graphs of codebases. Several architectural patterns from that project are worth
+keeping; several are worth generalizing.
+
+### What we're keeping from Understand-Anything
+
+1. **"Structure from tools, semantics from LLM."** Cheap deterministic extraction
+   (tree-sitter) populates the graph's skeleton; LLM is reserved for semantic
+   enrichment (summaries, cross-cutting relationships, layer detection). This
+   avoids paying LLM tokens for what static analysis already gives you for free.
+2. **Plugin / extractor model.** Domain-specific extractors register the node and
+   edge types they emit; the underlying graph storage stays generic.
+3. **Layer concept for navigation.** A high-level "architecture" view drills down
+   to "service" → "package" → "function". Layers are what make a large graph
+   navigable instead of an overwhelming hairball.
+
+### What we're generalizing
+
+Understand-Anything is locked to one domain (code). The schema, layer names,
+extractors, and dashboard all assume code analysis. The knowledge graph itself is
+stored as a monolithic `knowledge-graph.json` that gets rewritten on every update.
+
+`kg` decouples three concerns:
+
+1. **Generic graph storage** (this MVP) — agnostic to what knowledge is stored.
+2. **Domain-specific extractors** (future) — code, markdown notes, system
+   architecture, learning topics, business processes, physics, anything
+   structured.
+3. **Visualization / consumers** (future) — React Flow dashboard, Obsidian export,
+   Mermaid in markdown, IDE plugin, MCP server. Same graph, multiple consumers.
+
+The same engine should be able to hold a codebase, a personal learning map about
+Go, a company's marketing process, and physics concepts — all in one SQLite file
+with **cross-domain edges** as a first-class feature (e.g. `cars:engine →
+physics:thermo-law (governed_by)`, `marketing:campaign → code:feature
+(implemented_by)`).
+
+### Long-term roadmap
+
+This MVP is the foundation. Subsequent iterations (approximate order):
+
+1. **v0 — this MVP.** Schema, CLI, validation, versioning foundation. No LLM, no
+   extractors.
+2. **v1 — first extractor (no LLM).** A deterministic extractor such as
+   markdown-with-wikilinks or Go via tree-sitter. Proves the extractor interface.
+3. **v2 — LLM enrichment.** Optional pipeline using Anthropic / OpenAI SDK to add
+   summaries and semantic edges. Cost tracking via an `extractions` table added
+   then.
+4. **v3 — second extractor.** Forces the abstraction. If two extractors share the
+   Pipeline interface cleanly, the architecture is proven.
+5. **v4 — exposure.** HTTP API + MCP server so LLM agents (Claude Code, Cursor)
+   can drive the graph as a tool.
+6. **v5 — visualization.** Pick consumer(s) — React Flow dashboard, Obsidian
+   exporter, Mermaid markdown generator, or several. The graph format supports
+   all.
+7. **v6 — collaboration.** Activate the dormant `revision` + `changes` foundation.
+   Add `ChangesSince(seq)` API, `--if-rev N` optimistic locking, conflict
+   resolution policy.
+8. **v7+ — embeddings.** Vector search via `sqlite-vec`, semantic dedup, "find
+   similar nodes across domains".
+
+### Design intent
+
+- **LLM-first CLI.** The same CLI must be drivable by humans and by LLM agents.
+  Hence: always-JSON envelope, idempotent flags (`--if-not-exists`),
+  introspectable (`--help --json`), and cobra (whose help format LLMs have seen
+  extensively via kubectl / docker / gh).
+- **Hexagonal boundaries.** The core graph package has no I/O. SQLite is an
+  adapter. Future Postgres, HTTP, MCP, and extractors slot in as additional
+  adapters without touching core.
+- **Foundation, not implementation.** `revision` and `changes` ship in v0 but
+  carry no CLI surface yet. The cost is one column + one table. The benefit is
+  that v6 collaboration work does not require migrating existing data — sync just
+  starts working when the consumer arrives.
+
 ## Purpose
 
 A domain-agnostic knowledge graph engine in Go with SQLite storage. The graph structure
