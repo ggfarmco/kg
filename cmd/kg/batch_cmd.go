@@ -106,7 +106,12 @@ func runContinue(ctx context.Context, stdout io.Writer, svc *graph.Service, ops 
 	env := batchEnvelope{}
 	failures := []batchFailure{}
 	for i, op := range ops {
-		applied, err := applyOp(ctx, svc, op)
+		var applied bool
+		err := svc.InTx(ctx, func(ctx context.Context) error {
+			var inner error
+			applied, inner = applyOp(ctx, svc, op)
+			return inner
+		})
 		if err != nil {
 			m := mapError(err)
 			failures = append(failures, batchFailure{

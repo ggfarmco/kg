@@ -158,3 +158,19 @@ func TestBatchChunkAndContinueMutuallyExclusive(t *testing.T) {
 	_, _, exit := execBatchCmd(t, db, "", "--continue-on-error", "--chunk-size", "10")
 	require.NotEqual(t, 0, exit)
 }
+
+func TestBatchContinueOnErrorIsolatesFailingOp(t *testing.T) {
+	db := freshDB(t)
+	stream := strings.Join([]string{
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+	}, "\n") + "\n"
+
+	_, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
+	require.NotEqual(t, 0, exit)
+
+	var out, errOut bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "node", "list", "--domain", "a"}, &out, &errOut))
+	require.Contains(t, out.String(), `"a:good"`, "the good node must persist even though a later op failed")
+}
