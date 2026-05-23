@@ -125,3 +125,17 @@ func TestAddNodeAlreadyExists(t *testing.T) {
 	_, err = svc.AddNode(t.Context(), in)
 	require.ErrorIs(t, err, graph.ErrNodeAlreadyExists)
 }
+
+func TestAddNodeStoresProperties(t *testing.T) {
+	svc, fs := newService(t)
+	seedCarsDomain(t, svc)
+	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
+		Domain: "cars", Layer: "system", Name: "pt",
+		Properties: map[string]any{"horsepower": float64(200)},
+	})
+	require.NoError(t, err)
+
+	got, err := fs.GetNode(t.Context(), n.ID)
+	require.NoError(t, err)
+	require.Equal(t, float64(200), got.Properties["horsepower"])
+}

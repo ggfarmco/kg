@@ -80,3 +80,14 @@ func TestDeleteEdge(t *testing.T) {
 	require.NoError(t, svc.DeleteEdge(t.Context(), e.ID))
 	require.ErrorIs(t, svc.DeleteEdge(t.Context(), e.ID), graph.ErrEdgeNotFound)
 }
+
+func TestAddEdgeStoresProperties(t *testing.T) {
+	svc, _ := newService(t)
+	a, b := seedTwoNodes(t, svc)
+	e, err := svc.AddEdge(t.Context(), graph.AddEdgeInput{
+		Source: string(a), Target: string(b), Type: "x",
+		Properties: map[string]any{"weight": float64(1)},
+	})
+	require.NoError(t, err)
+	require.Equal(t, float64(1), e.Properties["weight"])
+}
