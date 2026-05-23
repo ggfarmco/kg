@@ -31,7 +31,7 @@ type NodeFilter struct {
 	Limit  int
 }
 
-var slugRE = regexp.MustCompile(`^[a-z0-9-]+$`)
+var slugRE = regexp.MustCompile(`^[a-z0-9-]+(?:(?:/|::)[a-z0-9-]+)*$`)
 
 func ParseSlug(s string) (SlugID, error) {
 	if !slugRE.MatchString(s) {
