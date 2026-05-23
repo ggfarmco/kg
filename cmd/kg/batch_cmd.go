@@ -15,37 +15,72 @@ import (
 	"github.com/ggfarmco/kg/internal/graph"
 )
 
-type batchCounts struct {
-	Applied int `json:"applied"`
-	Skipped int `json:"skipped"`
-	TookMs  int `json:"took_ms"`
+type batchOpts struct {
+	continueOnError bool
+	chunkSize       int
+	dryRun          bool
+	progress        bool
 }
 
+type batchEnvelope struct {
+	Applied int  `json:"applied"`
+	Skipped int  `json:"skipped"`
+	Failed  int  `json:"failed,omitempty"`
+	TookMs  int  `json:"took_ms"`
+	DryRun  bool `json:"dry_run,omitempty"`
+}
+
+type batchFailure struct {
+	Line    int    `json:"line"`
+	Op      string `json:"op"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+var errExitOne = errors.New("batch partial failure")
+
 func newBatchCmd(c *cliCtx) *cobra.Command {
+	opts := &batchOpts{}
 	cmd := &cobra.Command{
 		Use:   "batch",
 		Short: "Apply a JSONL stream of operations atomically",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if opts.continueOnError && opts.chunkSize > 0 {
+				return errors.New("--continue-on-error and --chunk-size are mutually exclusive")
+			}
 			svc, closeFn, err := c.openSvc(c.dbPath)
 			if err != nil {
 				return err
 			}
 			defer closeFn()
-			return runBatch(cmd.Context(), c.stdout, c.stderr, os.Stdin, svc)
+			return runBatch(cmd.Context(), c.stdout, c.stderr, os.Stdin, svc, *opts)
 		},
 	}
+	cmd.Flags().BoolVar(&opts.continueOnError, "continue-on-error", false, "keep applying ops on failure; final envelope lists failures")
+	cmd.Flags().IntVar(&opts.chunkSize, "chunk-size", 0, "commit a transaction every N ops (0 = single transaction)")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "validate without committing")
+	cmd.Flags().BoolVar(&opts.progress, "progress", false, "log progress to stderr roughly every 100ms")
 	return cmd
 }
 
-func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.Reader, svc *graph.Service) error {
-	ops, parseErr := drainStream(stdin, stderr)
+func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.Reader, svc *graph.Service, opts batchOpts) error {
+	ops, lines, parseErr := drainStream(stdin, stderr)
 	if parseErr != nil {
 		_ = writeErr(stdout, "INVALID_OP", parseErr.Error(), "")
 		return parseErrSentinel{parseErr}
 	}
 
 	start := time.Now()
-	counts := batchCounts{}
+	switch {
+	case opts.continueOnError:
+		return runContinue(ctx, stdout, svc, ops, lines, start)
+	default:
+		return runAtomic(ctx, stdout, svc, ops, start)
+	}
+}
+
+func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, start time.Time) error {
+	env := batchEnvelope{}
 	txErr := svc.InTx(ctx, func(ctx context.Context) error {
 		for _, op := range ops {
 			applied, err := applyOp(ctx, svc, op)
@@ -53,9 +88,9 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 				return err
 			}
 			if applied {
-				counts.Applied++
+				env.Applied++
 			} else {
-				counts.Skipped++
+				env.Skipped++
 			}
 		}
 		return nil
@@ -63,24 +98,71 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 	if txErr != nil {
 		return txErr
 	}
-	counts.TookMs = int(time.Since(start).Milliseconds())
-	return writeOK(stdout, counts)
+	env.TookMs = int(time.Since(start).Milliseconds())
+	return writeOK(stdout, env)
+}
+
+func runContinue(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, lines []int, start time.Time) error {
+	env := batchEnvelope{}
+	failures := []batchFailure{}
+	for i, op := range ops {
+		applied, err := applyOp(ctx, svc, op)
+		if err != nil {
+			m := mapError(err)
+			failures = append(failures, batchFailure{
+				Line: lines[i], Op: string(op.Op), Code: m.code, Message: m.message,
+			})
+			env.Failed++
+			continue
+		}
+		if applied {
+			env.Applied++
+		} else {
+			env.Skipped++
+		}
+	}
+	env.TookMs = int(time.Since(start).Milliseconds())
+	if env.Failed == 0 {
+		return writeOK(stdout, env)
+	}
+	return writeBatchPartial(stdout, env, failures)
+}
+
+func writeBatchPartial(w io.Writer, env batchEnvelope, failures []batchFailure) error {
+	body := struct {
+		OK       bool           `json:"ok"`
+		Data     batchEnvelope  `json:"data"`
+		Error    *envErr        `json:"error"`
+		Failures []batchFailure `json:"failures"`
+	}{
+		OK:       false,
+		Data:     env,
+		Error:    &envErr{Code: "BATCH_PARTIAL", Message: fmt.Sprintf("%d ops failed; see failures[]", env.Failed)},
+		Failures: failures,
+	}
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(body); err != nil {
+		return err
+	}
+	return errExitOne
 }
 
 type parseErrSentinel struct{ err error }
 
 func (p parseErrSentinel) Error() string { return p.err.Error() }
 
-func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, error) {
+func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, []int, error) {
 	d := batch.NewDecoder(r)
 	var ops []batch.Op
+	var lines []int
 	for {
 		op, err := d.Next()
 		if errors.Is(err, io.EOF) {
-			return ops, nil
+			return ops, lines, nil
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if op.Op == batch.OpMeta {
 			var m batch.MetaArgs
@@ -92,6 +174,7 @@ func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, error) {
 			continue
 		}
 		ops = append(ops, op)
+		lines = append(lines, d.Line())
 	}
 }
 

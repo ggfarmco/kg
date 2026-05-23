@@ -61,7 +61,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	err := cmd.ExecuteContext(context.Background())
 	if err != nil {
-		if errors.As(err, new(parseErrSentinel)) {
+		if errors.As(err, new(parseErrSentinel)) || errors.Is(err, errExitOne) {
 			return 1
 		}
 		m := mapError(err)

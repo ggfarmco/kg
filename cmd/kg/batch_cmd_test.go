@@ -111,3 +111,50 @@ func TestBatchInvalidJSONShortCircuits(t *testing.T) {
 	require.Equal(t, 0, listExit)
 	require.Contains(t, listOut.String(), `"data": []`)
 }
+
+func TestBatchContinueOnErrorReportsFailures(t *testing.T) {
+	db := freshDB(t)
+	stream := strings.Join([]string{
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"alsoGood"}}`,
+	}, "\n") + "\n"
+
+	stdout, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
+	require.NotEqual(t, 0, exit, "any failure causes nonzero exit")
+
+	var env struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Applied int `json:"applied"`
+			Failed  int `json:"failed"`
+		} `json:"data"`
+		Failures []struct {
+			Line int    `json:"line"`
+			Op   string `json:"op"`
+			Code string `json:"code"`
+		} `json:"failures"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(stdout), &env))
+	require.False(t, env.OK)
+	require.Equal(t, 3, env.Data.Applied, "good ops should commit")
+	require.Equal(t, 1, env.Data.Failed)
+	require.Len(t, env.Failures, 1)
+	require.Equal(t, 3, env.Failures[0].Line, "the bad name is on the 3rd op (lines start at 1)")
+}
+
+func TestBatchContinueOnErrorAllSuccessReturnsOK(t *testing.T) {
+	db := freshDB(t)
+	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"]}}` + "\n"
+	stdout, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
+	require.Equal(t, 0, exit)
+	require.Contains(t, stdout, `"ok": true`)
+	require.NotContains(t, stdout, "failures")
+}
+
+func TestBatchChunkAndContinueMutuallyExclusive(t *testing.T) {
+	db := freshDB(t)
+	_, _, exit := execBatchCmd(t, db, "", "--continue-on-error", "--chunk-size", "10")
+	require.NotEqual(t, 0, exit)
+}

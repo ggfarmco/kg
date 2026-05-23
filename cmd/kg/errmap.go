@@ -46,6 +46,10 @@ func mapError(err error) mapped {
 		return mapped{1, "HAS_DEPENDENTS", err.Error(), "remove children first, or use a future --cascade flag"}
 	case errors.As(err, new(*strconv.NumError)):
 		return mapped{1, "INVALID_INPUT", err.Error(), ""}
+	case errors.Is(err, errExitOne):
+		return mapped{1, "BATCH_PARTIAL", "", ""}
+	case errors.As(err, new(parseErrSentinel)):
+		return mapped{1, "INVALID_OP", err.Error(), ""}
 	default:
 		return mapped{10, "INTERNAL", err.Error(), ""}
 	}
