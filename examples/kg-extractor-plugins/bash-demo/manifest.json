@@ -1,0 +1,8 @@
+{
+  "name": "bash-demo",
+  "version": "0.1.0",
+  "description": "Trivial bash plugin emitting a fixed mini-graph for contract testing",
+  "runtime": "command",
+  "command": ["bash", "extract.sh"],
+  "supported_layers": ["root", "item"]
+}
