@@ -56,3 +56,72 @@ func TestAddNodeDerivedSlugUnderivable(t *testing.T) {
 	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "!!!"})
 	require.ErrorIs(t, err, graph.ErrSlugCannotDerive)
 }
+
+func TestAddNodeRejectsLayerNotInDomain(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "chassis", Name: "x"})
+	require.ErrorIs(t, err, graph.ErrLayerNotInDomain)
+}
+
+func TestAddNodeTopLayerWithParentRejected(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "p", Parent: "cars:other"})
+	require.ErrorIs(t, err, graph.ErrTopLayerCannotHaveParent)
+}
+
+func TestAddNodeNonTopRequiresParent(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine"})
+	require.ErrorIs(t, err, graph.ErrParentLayerMismatch)
+}
+
+func TestAddNodeParentMustExist(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine", Parent: "cars:missing"})
+	require.ErrorIs(t, err, graph.ErrNodeNotFound)
+}
+
+func TestAddNodeParentDomainMismatch(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "physics", Layers: []string{"law"}})
+	require.NoError(t, err)
+	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "physics", Layer: "law", Name: "thermo"})
+	require.NoError(t, err)
+	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine", Parent: "physics:thermo"})
+	require.ErrorIs(t, err, graph.ErrParentDomainMismatch)
+}
+
+func TestAddNodeParentLayerMismatch(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	require.NoError(t, err)
+	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "part", Name: "piston", Parent: "cars:pt"})
+	require.ErrorIs(t, err, graph.ErrParentLayerMismatch)
+}
+
+func TestAddNodeNonTopWithValidParent(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	require.NoError(t, err)
+	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine", Parent: "cars:pt"})
+	require.NoError(t, err)
+	require.NotNil(t, n.ParentID)
+	require.Equal(t, graph.NodeID("cars:pt"), *n.ParentID)
+}
+
+func TestAddNodeAlreadyExists(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	in := graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"}
+	_, err := svc.AddNode(t.Context(), in)
+	require.NoError(t, err)
+	_, err = svc.AddNode(t.Context(), in)
+	require.ErrorIs(t, err, graph.ErrNodeAlreadyExists)
+}

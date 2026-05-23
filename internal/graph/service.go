@@ -101,8 +101,30 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 		}
 	}
 
-	if in.Layer != d.Layers[0] || in.Parent != "" {
-		return nil, ErrTopLayerCannotHaveParent
+	topLayer := d.Layers[0]
+	isTop := in.Layer == topLayer
+
+	var parentPtr *NodeID
+	if in.Parent != "" {
+		if isTop {
+			return nil, ErrTopLayerCannotHaveParent
+		}
+		parentID := NodeID(in.Parent)
+		parent, err := s.store.GetNode(ctx, parentID)
+		if err != nil {
+			return nil, err
+		}
+		if parent.Domain != dID {
+			return nil, ErrParentDomainMismatch
+		}
+		parentLayerIdx := indexOf(d.Layers, parent.Layer)
+		nodeLayerIdx := indexOf(d.Layers, in.Layer)
+		if parentLayerIdx < 0 || nodeLayerIdx < 0 || nodeLayerIdx-parentLayerIdx != 1 {
+			return nil, ErrParentLayerMismatch
+		}
+		parentPtr = &parentID
+	} else if !isTop {
+		return nil, ErrParentLayerMismatch
 	}
 
 	now := s.now()
@@ -111,6 +133,8 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 		Domain:     dID,
 		Layer:      in.Layer,
 		Name:       in.Name,
+		ParentID:   parentPtr,
+		Summary:    in.Summary,
 		Properties: map[string]any{},
 		Revision:   1,
 		CreatedAt:  now,
@@ -129,4 +153,13 @@ func slicesContains[T comparable](haystack []T, needle T) bool {
 		}
 	}
 	return false
+}
+
+func indexOf[T comparable](xs []T, target T) int {
+	for i, x := range xs {
+		if x == target {
+			return i
+		}
+	}
+	return -1
 }
