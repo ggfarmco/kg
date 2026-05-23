@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "os"
 
 func main() {
-	fmt.Println("kg-extractor-tree-sitter: not yet implemented")
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
 }
