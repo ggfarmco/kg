@@ -146,6 +146,45 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 	return &n, nil
 }
 
+type UpdateNodeInput struct {
+	Name    *string
+	Summary *string
+}
+
+func (s *Service) GetNode(ctx context.Context, id NodeID) (*Node, error) {
+	return s.store.GetNode(ctx, id)
+}
+
+func (s *Service) ListNodes(ctx context.Context, f NodeFilter) ([]Node, error) {
+	return s.store.ListNodes(ctx, f)
+}
+
+func (s *Service) ChildrenOf(ctx context.Context, id NodeID) ([]Node, error) {
+	return s.store.ChildrenOf(ctx, id)
+}
+
+func (s *Service) UpdateNode(ctx context.Context, id NodeID, in UpdateNodeInput) (*Node, error) {
+	cur, err := s.store.GetNode(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if in.Name != nil {
+		cur.Name = *in.Name
+	}
+	if in.Summary != nil {
+		cur.Summary = *in.Summary
+	}
+	cur.UpdatedAt = s.now()
+	if err := s.store.UpdateNode(ctx, *cur); err != nil {
+		return nil, err
+	}
+	return s.store.GetNode(ctx, id)
+}
+
+func (s *Service) DeleteNode(ctx context.Context, id NodeID) error {
+	return s.store.DeleteNode(ctx, id)
+}
+
 func slicesContains[T comparable](haystack []T, needle T) bool {
 	for _, h := range haystack {
 		if h == needle {
