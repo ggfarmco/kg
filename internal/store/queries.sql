@@ -43,3 +43,29 @@ SELECT revision FROM nodes WHERE id = ?;
 
 -- name: DeleteNode :exec
 DELETE FROM nodes WHERE id = ?;
+
+-- name: CreateEdge :one
+INSERT INTO edges(source_id, target_id, type, properties, revision, created_at)
+VALUES (?, ?, ?, ?, 1, ?) RETURNING id;
+
+-- name: GetEdge :one
+SELECT id, source_id, target_id, type, properties, revision, created_at FROM edges WHERE id = ?;
+
+-- name: DeleteEdge :exec
+DELETE FROM edges WHERE id = ?;
+
+-- name: EdgesFromAll :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE source_id = ? ORDER BY id;
+
+-- name: EdgesFromTyped :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE source_id = ? AND type IN (sqlc.slice(types)) ORDER BY id;
+
+-- name: EdgesToAll :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE target_id = ? ORDER BY id;
+
+-- name: EdgesToTyped :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE target_id = ? AND type IN (sqlc.slice(types)) ORDER BY id;

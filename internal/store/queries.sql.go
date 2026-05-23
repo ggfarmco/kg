@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"strings"
 )
 
 const appendChange = `-- name: AppendChange :exec
@@ -93,6 +94,32 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 	return err
 }
 
+const createEdge = `-- name: CreateEdge :one
+INSERT INTO edges(source_id, target_id, type, properties, revision, created_at)
+VALUES (?, ?, ?, ?, 1, ?) RETURNING id
+`
+
+type CreateEdgeParams struct {
+	SourceID   string
+	TargetID   string
+	Type       string
+	Properties string
+	CreatedAt  int64
+}
+
+func (q *Queries) CreateEdge(ctx context.Context, arg CreateEdgeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, createEdge,
+		arg.SourceID,
+		arg.TargetID,
+		arg.Type,
+		arg.Properties,
+		arg.CreatedAt,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const createNode = `-- name: CreateNode :exec
 INSERT INTO nodes(id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
@@ -134,6 +161,15 @@ func (q *Queries) DeleteDomain(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteEdge = `-- name: DeleteEdge :exec
+DELETE FROM edges WHERE id = ?
+`
+
+func (q *Queries) DeleteEdge(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteEdge, id)
+	return err
+}
+
 const deleteNode = `-- name: DeleteNode :exec
 DELETE FROM nodes WHERE id = ?
 `
@@ -141,6 +177,182 @@ DELETE FROM nodes WHERE id = ?
 func (q *Queries) DeleteNode(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteNode, id)
 	return err
+}
+
+const edgesFromAll = `-- name: EdgesFromAll :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE source_id = ? ORDER BY id
+`
+
+func (q *Queries) EdgesFromAll(ctx context.Context, sourceID string) ([]Edge, error) {
+	rows, err := q.db.QueryContext(ctx, edgesFromAll, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Edge{}
+	for rows.Next() {
+		var i Edge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.TargetID,
+			&i.Type,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const edgesFromTyped = `-- name: EdgesFromTyped :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE source_id = ? AND type IN (/*SLICE:types*/?) ORDER BY id
+`
+
+type EdgesFromTypedParams struct {
+	SourceID string
+	Types    []string
+}
+
+func (q *Queries) EdgesFromTyped(ctx context.Context, arg EdgesFromTypedParams) ([]Edge, error) {
+	query := edgesFromTyped
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.SourceID)
+	if len(arg.Types) > 0 {
+		for _, v := range arg.Types {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:types*/?", strings.Repeat(",?", len(arg.Types))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:types*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Edge{}
+	for rows.Next() {
+		var i Edge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.TargetID,
+			&i.Type,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const edgesToAll = `-- name: EdgesToAll :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE target_id = ? ORDER BY id
+`
+
+func (q *Queries) EdgesToAll(ctx context.Context, targetID string) ([]Edge, error) {
+	rows, err := q.db.QueryContext(ctx, edgesToAll, targetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Edge{}
+	for rows.Next() {
+		var i Edge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.TargetID,
+			&i.Type,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const edgesToTyped = `-- name: EdgesToTyped :many
+SELECT id, source_id, target_id, type, properties, revision, created_at
+FROM edges WHERE target_id = ? AND type IN (/*SLICE:types*/?) ORDER BY id
+`
+
+type EdgesToTypedParams struct {
+	TargetID string
+	Types    []string
+}
+
+func (q *Queries) EdgesToTyped(ctx context.Context, arg EdgesToTypedParams) ([]Edge, error) {
+	query := edgesToTyped
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.TargetID)
+	if len(arg.Types) > 0 {
+		for _, v := range arg.Types {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:types*/?", strings.Repeat(",?", len(arg.Types))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:types*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Edge{}
+	for rows.Next() {
+		var i Edge
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.TargetID,
+			&i.Type,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getDomain = `-- name: GetDomain :one
@@ -154,6 +366,25 @@ func (q *Queries) GetDomain(ctx context.Context, id string) (Domain, error) {
 		&i.ID,
 		&i.Description,
 		&i.Layers,
+		&i.Revision,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getEdge = `-- name: GetEdge :one
+SELECT id, source_id, target_id, type, properties, revision, created_at FROM edges WHERE id = ?
+`
+
+func (q *Queries) GetEdge(ctx context.Context, id int64) (Edge, error) {
+	row := q.db.QueryRowContext(ctx, getEdge, id)
+	var i Edge
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.TargetID,
+		&i.Type,
+		&i.Properties,
 		&i.Revision,
 		&i.CreatedAt,
 	)
