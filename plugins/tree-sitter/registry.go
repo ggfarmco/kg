@@ -3,10 +3,11 @@ package main
 import "sync"
 
 type fileInfo struct {
-	AbsPath     string
-	RelPath     string
-	PackagePath string
-	Source      []byte
+	AbsPath      string
+	RelPath      string
+	BasenameSlug string
+	PackagePath  string
+	Source       []byte
 }
 
 type packageInfo struct {
