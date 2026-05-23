@@ -42,6 +42,22 @@ func TestCreateDomainDuplicate(t *testing.T) {
 	require.ErrorIs(t, s.CreateDomain(ctx, d), graph.ErrDomainAlreadyExists)
 }
 
+func TestDeleteDomainWithNodesIsRestricted(t *testing.T) {
+	s := openTestDB(t)
+	ctx := t.Context()
+	require.NoError(t, s.CreateDomain(ctx, graph.Domain{ID: "cars", Layers: []string{"system"}, CreatedAt: time.UnixMilli(1)}))
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT",
+		Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+	}))
+
+	require.ErrorIs(t, s.DeleteDomain(ctx, "cars"), graph.ErrHasDependents)
+
+	got, err := s.GetDomain(ctx, "cars")
+	require.NoError(t, err, "domain must survive a blocked delete")
+	require.Equal(t, graph.DomainID("cars"), got.ID)
+}
+
 func TestDomainChangesLogged(t *testing.T) {
 	s := openTestDB(t)
 	ctx := t.Context()

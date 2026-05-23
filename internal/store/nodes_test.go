@@ -81,6 +81,28 @@ func TestNodeChangesLog(t *testing.T) {
 	require.Nil(t, revs[2])
 }
 
+func TestDeleteNodeWithChildrenIsRestricted(t *testing.T) {
+	s := openTestDB(t)
+	seedDomain(t, s)
+	ctx := t.Context()
+
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT",
+		Properties: map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
+	}))
+	pt := graph.NodeID("cars:pt")
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:engine", Domain: "cars", Layer: "subsystem", Name: "Engine", ParentID: &pt,
+		Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+	}))
+
+	require.ErrorIs(t, s.DeleteNode(ctx, "cars:pt"), graph.ErrHasDependents)
+
+	got, err := s.GetNode(ctx, "cars:pt")
+	require.NoError(t, err, "parent node must survive a blocked delete")
+	require.Equal(t, graph.NodeID("cars:pt"), got.ID)
+}
+
 func TestChildrenOf(t *testing.T) {
 	s := openTestDB(t)
 	seedDomain(t, s)
