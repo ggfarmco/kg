@@ -63,3 +63,65 @@ make gen      # regenerate sqlc code from queries.sql
 make migrate  # apply migrations via goose CLI to ./kg.db
 make lint     # golangci-lint
 ```
+
+## Extractors (v1)
+
+kg is a generic graph engine. To populate it from real-world inputs, use
+`kg-extractor`, a separate binary that discovers and dispatches plugins.
+
+### Pipeline
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌─────────────┐
+│   plugin        │ JSONL │  kg-extractor   │ JSONL │     kg      │
+│  (any runtime)  ├──────►│  (validator)    ├──────►│    batch    │
+└─────────────────┘       └─────────────────┘       └─────────────┘
+```
+
+Plugins live in `~/.config/kg-extractor/plugins/<name>/` (override via
+`KG_EXTRACTOR_PLUGINS_PATH`). Each has a `manifest.json` and an executable
+(native binary) or command (`["bash", "extract.sh"]`).
+
+### Try the bash demo
+
+```sh
+make build-extractor
+ln -s "$(pwd)/examples/kg-extractor-plugins/bash-demo" ~/.config/kg-extractor/plugins/bash-demo
+./bin/kg --db ./kg.db init
+./bin/kg-extractor extract --plugin bash-demo --domain demoapp --db ./kg.db --kg-binary ./bin/kg
+./bin/kg node list --domain demoapp
+```
+
+### Extract Go code via the tree-sitter plugin
+
+The tree-sitter plugin needs CGO; build it separately:
+
+```sh
+make build-plugin-treesitter
+mkdir -p ~/.config/kg-extractor/plugins/tree-sitter
+cat > ~/.config/kg-extractor/plugins/tree-sitter/manifest.json <<'EOF'
+{
+  "name": "tree-sitter",
+  "version": "0.1.0",
+  "description": "tree-sitter (Go)",
+  "runtime": "native",
+  "executable": "kg-extractor-tree-sitter"
+}
+EOF
+cp ./bin/kg-extractor-tree-sitter ~/.config/kg-extractor/plugins/tree-sitter/
+
+./bin/kg-extractor extract \
+    --plugin tree-sitter --language go \
+    --input ./internal/graph --domain mykg \
+    --db ./kg.db --kg-binary ./bin/kg
+```
+
+This produces a `package → file → decl` graph plus `imports` and intra-package
+`calls` edges. See `docs/superpowers/specs/2026-05-23-kg-v1-extractor-design.md`
+for the full contract.
+
+### Custom plugins
+
+Any executable that reads a JSON config on stdin and emits JSONL ops on stdout
+satisfies the contract. See `examples/kg-extractor-plugins/bash-demo/extract.sh`
+for a 10-line template.
