@@ -80,6 +80,5 @@ func (g *GoLang) ResolvePackage(ctx context.Context, files []FileSource, cs Call
 	return nil
 }
 
-func walkDecls(*sitter.Node, []byte, DeclSink)      {}
 func walkImports(*sitter.Node, []byte, ImportSink)  {}
 func walkCalls(*GoLang, FileSource, CallSink) error { return nil }
