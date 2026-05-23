@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -34,6 +35,16 @@ func (s *Service) AddDomain(ctx context.Context, in AddDomainInput) (*Domain, er
 	}
 	if len(in.Layers) == 0 {
 		return nil, errors.New("layers must not be empty")
+	}
+	seen := make(map[string]struct{}, len(in.Layers))
+	for i, l := range in.Layers {
+		if l == "" {
+			return nil, fmt.Errorf("layer %d is empty", i)
+		}
+		if _, dup := seen[l]; dup {
+			return nil, fmt.Errorf("layer %q is duplicated", l)
+		}
+		seen[l] = struct{}{}
 	}
 	d := Domain{
 		ID:          id,
@@ -196,6 +207,9 @@ func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
 	dst := NodeID(in.Target)
 	if src == dst {
 		return nil, ErrEdgeSelfLoop
+	}
+	if in.Type == "" {
+		return nil, fmt.Errorf("edge type must not be empty")
 	}
 	if _, err := s.store.GetNode(ctx, src); err != nil {
 		return nil, err

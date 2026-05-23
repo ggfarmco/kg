@@ -120,6 +120,9 @@ func mapSQLiteErr(err error, entity string) error {
 	if !errors.As(err, &se) {
 		return err
 	}
+	if se.Code() == sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY || se.Code() == sqlite3.SQLITE_CONSTRAINT_TRIGGER {
+		return graph.ErrHasDependents
+	}
 	if se.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE || se.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
 		switch entity {
 		case "domain":

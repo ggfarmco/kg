@@ -76,6 +76,14 @@ func TestListDomainsSorted(t *testing.T) {
 	require.Equal(t, graph.DomainID("physics"), got[2].ID)
 }
 
+func TestAddDomainRejectsBlankAndDuplicateLayers(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "x", Layers: []string{"a", "", "c"}})
+	require.Error(t, err)
+	_, err = svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "y", Layers: []string{"a", "b", "a"}})
+	require.Error(t, err)
+}
+
 func TestDeleteDomain(t *testing.T) {
 	svc, _ := newService(t)
 	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: []string{"x"}})

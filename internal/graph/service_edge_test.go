@@ -40,6 +40,13 @@ func TestAddEdgeMissingEndpoint(t *testing.T) {
 	require.ErrorIs(t, err, graph.ErrNodeNotFound)
 }
 
+func TestAddEdgeRejectsEmptyType(t *testing.T) {
+	svc, _ := newService(t)
+	a, b := seedTwoNodes(t, svc)
+	_, err := svc.AddEdge(t.Context(), graph.AddEdgeInput{Source: string(a), Target: string(b), Type: ""})
+	require.Error(t, err)
+}
+
 func TestAddEdgeDuplicate(t *testing.T) {
 	svc, _ := newService(t)
 	a, b := seedTwoNodes(t, svc)

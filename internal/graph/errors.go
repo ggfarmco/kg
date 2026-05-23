@@ -16,4 +16,5 @@ var (
 	ErrEdgeAlreadyExists        = errors.New("edge already exists")
 	ErrEdgeNotFound             = errors.New("edge not found")
 	ErrNestedTransaction        = errors.New("nested InTx is not supported")
+	ErrHasDependents            = errors.New("entity has dependents")
 )

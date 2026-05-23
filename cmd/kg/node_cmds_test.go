@@ -36,7 +36,8 @@ func TestNodeWalkthrough(t *testing.T) {
 	require.Contains(t, body, "the drive train")
 
 	code, body = runCLI(dbPath, "node", "delete", "cars:powertrain")
-	require.NotEqual(t, 0, code, body) // RESTRICT: child still exists
+	require.Equal(t, 1, code, body)
+	require.Contains(t, body, "HAS_DEPENDENTS")
 }
 
 func TestNodeAddIfNotExistsSkips(t *testing.T) {

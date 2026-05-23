@@ -41,6 +41,8 @@ func mapError(err error) mapped {
 		return mapped{1, "TOP_LAYER_CANNOT_HAVE_PARENT", err.Error(), ""}
 	case errors.Is(err, graph.ErrEdgeSelfLoop):
 		return mapped{1, "EDGE_SELF_LOOP", err.Error(), ""}
+	case errors.Is(err, graph.ErrHasDependents):
+		return mapped{1, "HAS_DEPENDENTS", err.Error(), "remove children first, or use a future --cascade flag"}
 	default:
 		return mapped{10, "INTERNAL", err.Error(), ""}
 	}
