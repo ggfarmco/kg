@@ -17,7 +17,7 @@ migrate:
 	go run github.com/pressly/goose/v3/cmd/goose -dir migrations sqlite3 $(DB) up
 
 lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint run
+	golangci-lint run
 
 install:
 	go install ./cmd/kg
