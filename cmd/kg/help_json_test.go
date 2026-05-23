@@ -28,4 +28,14 @@ func TestHelpJSONListsCommandTree(t *testing.T) {
 	require.Contains(t, names, "node")
 	require.Contains(t, names, "edge")
 	require.Contains(t, names, "init")
+
+	rootFlags := root["flags"].([]any)
+	hasDB := false
+	for _, f := range rootFlags {
+		if f.(map[string]any)["name"] == "db" {
+			hasDB = true
+			break
+		}
+	}
+	require.True(t, hasDB, "--db persistent flag should appear in root flags")
 }

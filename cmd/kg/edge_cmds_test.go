@@ -9,6 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEdgeDeleteInvalidIDExits1(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "kg.db")
+	code, _ := runCLI(dbPath, "init")
+	require.Equal(t, 0, code)
+	code, body := runCLI(dbPath, "edge", "delete", "not-a-number")
+	require.Equal(t, 1, code, body)
+	require.Contains(t, body, "INVALID_INPUT")
+}
+
 func TestEdgeWalkthrough(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "kg.db")
 	for _, args := range [][]string{

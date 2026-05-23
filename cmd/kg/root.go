@@ -69,5 +69,5 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 func newInitCmd(c *cliCtx) *cobra.Command   { return newInitCmdReal(c) }
 func newDomainCmd(c *cliCtx) *cobra.Command { return newDomainCmdReal(c) }
-func newNodeCmd(c *cliCtx) *cobra.Command { return newNodeCmdReal(c) }
-func newEdgeCmd(c *cliCtx) *cobra.Command { return newEdgeCmdReal(c) }
+func newNodeCmd(c *cliCtx) *cobra.Command   { return newNodeCmdReal(c) }
+func newEdgeCmd(c *cliCtx) *cobra.Command   { return newEdgeCmdReal(c) }

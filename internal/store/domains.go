@@ -97,9 +97,9 @@ func decodeDomain(id string, desc *string, layersJSON string, rev, createdAt int
 		return nil, fmt.Errorf("unmarshal layers: %w", err)
 	}
 	d := &graph.Domain{
-		ID:       graph.DomainID(id),
-		Layers:   layers,
-		Revision: rev,
+		ID:        graph.DomainID(id),
+		Layers:    layers,
+		Revision:  rev,
 		CreatedAt: time.UnixMilli(createdAt),
 	}
 	if desc != nil {

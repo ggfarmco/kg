@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"strconv"
 
 	"github.com/ggfarmco/kg/internal/graph"
 )
@@ -43,6 +44,8 @@ func mapError(err error) mapped {
 		return mapped{1, "EDGE_SELF_LOOP", err.Error(), ""}
 	case errors.Is(err, graph.ErrHasDependents):
 		return mapped{1, "HAS_DEPENDENTS", err.Error(), "remove children first, or use a future --cascade flag"}
+	case errors.As(err, new(*strconv.NumError)):
+		return mapped{1, "INVALID_INPUT", err.Error(), ""}
 	default:
 		return mapped{10, "INTERNAL", err.Error(), ""}
 	}

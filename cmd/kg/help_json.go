@@ -23,11 +23,15 @@ type helpFlag struct {
 
 func commandTree(c *cobra.Command) helpCmd {
 	out := helpCmd{Name: c.Name(), Short: c.Short, Use: c.Use}
-	c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+	visit := func(f *pflag.Flag) {
 		out.Flags = append(out.Flags, helpFlag{
 			Name: f.Name, Short: f.Shorthand, Type: f.Value.Type(), Default: f.DefValue, Usage: f.Usage,
 		})
-	})
+	}
+	c.LocalFlags().VisitAll(visit)
+	if !c.HasParent() {
+		c.PersistentFlags().VisitAll(visit)
+	}
 	for _, sub := range c.Commands() {
 		if sub.Hidden {
 			continue
