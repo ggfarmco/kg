@@ -72,12 +72,13 @@ func (s *Service) DeleteDomain(ctx context.Context, id DomainID) error {
 }
 
 type AddNodeInput struct {
-	Domain  string
-	Layer   string
-	Name    string
-	ID      string
-	Parent  string
-	Summary string
+	Domain     string
+	Layer      string
+	Name       string
+	ID         string
+	Parent     string
+	Summary    string
+	Properties map[string]any
 }
 
 func deriveSlug(name string) (SlugID, error) {
@@ -146,7 +147,7 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 		Name:       in.Name,
 		ParentID:   parentPtr,
 		Summary:    in.Summary,
-		Properties: map[string]any{},
+		Properties: nonNilProps(in.Properties),
 		Revision:   1,
 		CreatedAt:  now,
 		UpdatedAt:  now,
@@ -197,9 +198,10 @@ func (s *Service) DeleteNode(ctx context.Context, id NodeID) error {
 }
 
 type AddEdgeInput struct {
-	Source string
-	Target string
-	Type   string
+	Source     string
+	Target     string
+	Type       string
+	Properties map[string]any
 }
 
 func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
@@ -221,7 +223,7 @@ func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
 		SourceID:   src,
 		TargetID:   dst,
 		Type:       in.Type,
-		Properties: map[string]any{},
+		Properties: nonNilProps(in.Properties),
 		Revision:   1,
 		CreatedAt:  s.now(),
 	}
@@ -263,4 +265,12 @@ func indexOf[T comparable](xs []T, target T) int {
 		}
 	}
 	return -1
+}
+
+func nonNilProps(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

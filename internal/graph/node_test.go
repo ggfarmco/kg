@@ -33,6 +33,36 @@ func TestParseSlug(t *testing.T) {
 	}
 }
 
+func TestParseSlugAcceptsCompoundForms(t *testing.T) {
+	cases := []string{
+		"engine",
+		"graph/node-go",
+		"graph/node-go::parseslug",
+		"a/b/c",
+		"a::b::c",
+		"a/b::c/d::e",
+	}
+	for _, in := range cases {
+		_, err := graph.ParseSlug(in)
+		require.NoError(t, err, "expected %q to be a valid slug", in)
+	}
+}
+
+func TestParseSlugRejectsBadCompounds(t *testing.T) {
+	cases := []string{
+		"with:colon",
+		"/foo",
+		"foo/",
+		"foo//bar",
+		"foo::::bar",
+		"foo/::bar",
+	}
+	for _, in := range cases {
+		_, err := graph.ParseSlug(in)
+		require.ErrorIs(t, err, graph.ErrInvalidSlug, "expected %q to be invalid", in)
+	}
+}
+
 func TestNodeIDRoundtrip(t *testing.T) {
 	id := graph.NewNodeID("cars", "engine")
 	require.Equal(t, graph.NodeID("cars:engine"), id)

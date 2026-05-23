@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 
@@ -26,7 +27,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 		SilenceUsage:  true,
 	}
 	root.PersistentFlags().StringVar(&c.dbPath, "db", envOr("KG_DB", "./kg.db"), "path to the SQLite database file")
-	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c))
+	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c))
 	return root
 }
 
@@ -60,6 +61,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	err := cmd.ExecuteContext(context.Background())
 	if err != nil {
+		if errors.As(err, new(parseErrSentinel)) || errors.Is(err, errExitOne) {
+			return 1
+		}
 		m := mapError(err)
 		_ = writeErr(stdout, m.code, m.message, m.hint)
 		return m.exit

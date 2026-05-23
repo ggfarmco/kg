@@ -1,0 +1,7 @@
+{"op":"meta","args":{"plugin":"tree-sitter","language":"go","total_ops":7}}
+{"op":"domain.add","args":{"id":"g","layers":["package","file","decl"],"description":"Extracted by kg-extractor-tree-sitter (go)","if_not_exists":true}}
+{"op":"node.add","args":{"domain":"g","layer":"package","name":"input","id":"input","if_not_exists":true}}
+{"op":"node.add","args":{"domain":"g","layer":"file","name":"types.go","id":"input/types","parent":"g:input","if_not_exists":true}}
+{"op":"node.add","args":{"domain":"g","layer":"decl","name":"repo","id":"input/types::repo","parent":"g:input/types","properties":{"exported":true,"kind":"struct","line_end":5,"line_start":3,"name":"Repo"},"if_not_exists":true}}
+{"op":"node.add","args":{"domain":"g","layer":"decl","name":"save","id":"input/types::save","parent":"g:input/types","properties":{"exported":true,"kind":"method","line_end":7,"line_start":7,"name":"Save","params":null,"receiver":"Repo","returns":"error"},"if_not_exists":true}}
+{"op":"node.add","args":{"domain":"g","layer":"decl","name":"reader","id":"input/types::reader","parent":"g:input/types","properties":{"exported":true,"kind":"interface","line_end":11,"line_start":9,"name":"Reader"},"if_not_exists":true}}

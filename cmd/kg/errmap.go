@@ -16,6 +16,10 @@ type mapped struct {
 
 func mapError(err error) mapped {
 	switch {
+	case errors.Is(err, errExitOne):
+		return mapped{1, "BATCH_PARTIAL", "", ""}
+	case errors.As(err, new(parseErrSentinel)):
+		return mapped{1, "INVALID_OP", err.Error(), ""}
 	case errors.Is(err, graph.ErrDomainNotFound):
 		return mapped{3, "DOMAIN_NOT_FOUND", err.Error(), "run `kg domain list`"}
 	case errors.Is(err, graph.ErrNodeNotFound):
