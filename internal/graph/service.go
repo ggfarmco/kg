@@ -185,6 +185,50 @@ func (s *Service) DeleteNode(ctx context.Context, id NodeID) error {
 	return s.store.DeleteNode(ctx, id)
 }
 
+type AddEdgeInput struct {
+	Source string
+	Target string
+	Type   string
+}
+
+func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
+	src := NodeID(in.Source)
+	dst := NodeID(in.Target)
+	if src == dst {
+		return nil, ErrEdgeSelfLoop
+	}
+	if _, err := s.store.GetNode(ctx, src); err != nil {
+		return nil, err
+	}
+	if _, err := s.store.GetNode(ctx, dst); err != nil {
+		return nil, err
+	}
+	e := &Edge{
+		SourceID:   src,
+		TargetID:   dst,
+		Type:       in.Type,
+		Properties: map[string]any{},
+		Revision:   1,
+		CreatedAt:  s.now(),
+	}
+	if err := s.store.CreateEdge(ctx, e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func (s *Service) DeleteEdge(ctx context.Context, id EdgeID) error {
+	return s.store.DeleteEdge(ctx, id)
+}
+
+func (s *Service) EdgesFrom(ctx context.Context, src NodeID, types []string) ([]Edge, error) {
+	return s.store.EdgesFrom(ctx, src, types)
+}
+
+func (s *Service) EdgesTo(ctx context.Context, dst NodeID, types []string) ([]Edge, error) {
+	return s.store.EdgesTo(ctx, dst, types)
+}
+
 func slicesContains[T comparable](haystack []T, needle T) bool {
 	for _, h := range haystack {
 		if h == needle {
