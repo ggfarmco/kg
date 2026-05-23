@@ -52,6 +52,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cmd.SetOut(stdout)
 	cmd.SetErr(stderr)
 	cmd.SetArgs(args)
+
+	if wantsHelpJSON(args) {
+		_ = writeOK(stdout, commandTree(cmd))
+		return 0
+	}
+
 	err := cmd.ExecuteContext(context.Background())
 	if err != nil {
 		m := mapError(err)
