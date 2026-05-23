@@ -4,16 +4,32 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type (
-	DomainID string
-	SlugID   string
-	NodeID   string
-	EdgeID   int64
+	SlugID string
+	NodeID string
 )
 
-var ErrInvalidSlug = errors.New("invalid slug")
+type Node struct {
+	ID         NodeID
+	Domain     DomainID
+	Layer      string
+	Name       string
+	ParentID   *NodeID
+	Summary    string
+	Properties map[string]any
+	Revision   int64
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type NodeFilter struct {
+	Domain DomainID
+	Layer  string
+	Limit  int
+}
 
 var slugRE = regexp.MustCompile(`^[a-z0-9-]+$`)
 
@@ -22,13 +38,6 @@ func ParseSlug(s string) (SlugID, error) {
 		return "", ErrInvalidSlug
 	}
 	return SlugID(s), nil
-}
-
-func ParseDomainID(s string) (DomainID, error) {
-	if !slugRE.MatchString(s) {
-		return "", ErrInvalidSlug
-	}
-	return DomainID(s), nil
 }
 
 func NewNodeID(d DomainID, s SlugID) NodeID {

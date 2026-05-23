@@ -33,15 +33,6 @@ func TestParseSlug(t *testing.T) {
 	}
 }
 
-func TestParseDomainID(t *testing.T) {
-	got, err := graph.ParseDomainID("cars")
-	require.NoError(t, err)
-	require.Equal(t, graph.DomainID("cars"), got)
-
-	_, err = graph.ParseDomainID("Cars")
-	require.ErrorIs(t, err, graph.ErrInvalidSlug)
-}
-
 func TestNodeIDRoundtrip(t *testing.T) {
 	id := graph.NewNodeID("cars", "engine")
 	require.Equal(t, graph.NodeID("cars:engine"), id)

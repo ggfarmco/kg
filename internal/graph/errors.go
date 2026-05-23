@@ -17,4 +17,5 @@ var (
 	ErrEdgeNotFound             = errors.New("edge not found")
 	ErrNestedTransaction        = errors.New("nested InTx is not supported")
 	ErrHasDependents            = errors.New("entity has dependents")
+	ErrInvalidSlug              = errors.New("invalid slug")
 )
