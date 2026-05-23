@@ -77,9 +77,9 @@ func TestBatchAtomicityRollsBackOnFailure(t *testing.T) {
 	require.NotEqual(t, 0, exit)
 
 	var stdout, stderr bytes.Buffer
-	listExit := run([]string{"--db", db, "node", "list", "--domain", "a"}, &stdout, &stderr)
+	listExit := run([]string{"--db", db, "domain", "list"}, &stdout, &stderr)
 	require.Equal(t, 0, listExit)
-	require.Contains(t, stdout.String(), `"data": []`)
+	require.Contains(t, stdout.String(), `"data": []`, "the entire batch (including the leading domain.add) must roll back")
 }
 
 func TestBatchIfNotExistsCountsSkipped(t *testing.T) {

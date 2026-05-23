@@ -84,8 +84,11 @@ func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, error) {
 		}
 		if op.Op == batch.OpMeta {
 			var m batch.MetaArgs
-			_ = json.Unmarshal(op.Args, &m)
-			fmt.Fprintf(stderr, "meta: plugin=%q total_ops=%d\n", m.Plugin, m.TotalOps)
+			if err := json.Unmarshal(op.Args, &m); err != nil {
+				fmt.Fprintf(stderr, "meta: args parse error: %v\n", err)
+			} else {
+				fmt.Fprintf(stderr, "meta: plugin=%q total_ops=%d\n", m.Plugin, m.TotalOps)
+			}
 			continue
 		}
 		ops = append(ops, op)
