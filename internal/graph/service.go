@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -57,4 +58,75 @@ func (s *Service) ListDomains(ctx context.Context) ([]Domain, error) {
 
 func (s *Service) DeleteDomain(ctx context.Context, id DomainID) error {
 	return s.store.DeleteDomain(ctx, id)
+}
+
+type AddNodeInput struct {
+	Domain  string
+	Layer   string
+	Name    string
+	ID      string
+	Parent  string
+	Summary string
+}
+
+func deriveSlug(name string) (SlugID, error) {
+	s := strings.ToLower(strings.TrimSpace(name))
+	s = strings.ReplaceAll(s, " ", "-")
+	return ParseSlug(s)
+}
+
+func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
+	dID, err := ParseDomainID(in.Domain)
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.store.GetDomain(ctx, dID)
+	if err != nil {
+		return nil, err
+	}
+	if !slicesContains(d.Layers, in.Layer) {
+		return nil, ErrLayerNotInDomain
+	}
+
+	var slug SlugID
+	if in.ID != "" {
+		slug, err = ParseSlug(in.ID)
+		if err != nil {
+			return nil, ErrInvalidSlug
+		}
+	} else {
+		slug, err = deriveSlug(in.Name)
+		if err != nil {
+			return nil, ErrSlugCannotDerive
+		}
+	}
+
+	if in.Layer != d.Layers[0] || in.Parent != "" {
+		return nil, ErrTopLayerCannotHaveParent
+	}
+
+	now := s.now()
+	n := Node{
+		ID:         NewNodeID(dID, slug),
+		Domain:     dID,
+		Layer:      in.Layer,
+		Name:       in.Name,
+		Properties: map[string]any{},
+		Revision:   1,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	if err := s.store.CreateNode(ctx, n); err != nil {
+		return nil, err
+	}
+	return &n, nil
+}
+
+func slicesContains[T comparable](haystack []T, needle T) bool {
+	for _, h := range haystack {
+		if h == needle {
+			return true
+		}
+	}
+	return false
 }
