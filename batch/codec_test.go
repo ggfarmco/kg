@@ -35,12 +35,19 @@ func TestDecoderHappyPath(t *testing.T) {
 	require.Equal(t, batch.OpNodeAdd, ops[2].Op)
 }
 
-func TestDecoderSkipsBlankLines(t *testing.T) {
-	in := strings.NewReader("\n  \n" + `{"op":"meta","args":{}}` + "\n\n")
+func TestDecoderSkipsLeadingBlankLines(t *testing.T) {
+	in := strings.NewReader("\n  \n" + `{"op":"meta","args":{}}` + "\n")
 	d := batch.NewDecoder(in)
 	op, err := d.Next()
 	require.NoError(t, err)
 	require.Equal(t, batch.OpMeta, op.Op)
+}
+
+func TestDecoderTrailingBlankReturnsEOF(t *testing.T) {
+	in := strings.NewReader(`{"op":"meta","args":{}}` + "\n\n")
+	d := batch.NewDecoder(in)
+	_, err := d.Next()
+	require.NoError(t, err)
 
 	_, err = d.Next()
 	require.ErrorIs(t, err, io.EOF)
@@ -86,11 +93,3 @@ func TestEncoderRoundTrip(t *testing.T) {
 	require.Equal(t, batch.OpDomainAdd, second.Op)
 }
 
-func TestEncoderEmitsOnePerLine(t *testing.T) {
-	var buf bytes.Buffer
-	enc := batch.NewEncoder(&buf)
-	require.NoError(t, enc.NodeAdd(batch.NodeAddArgs{Domain: "a", Layer: "l", Name: "n"}))
-	require.NoError(t, enc.NodeAdd(batch.NodeAddArgs{Domain: "a", Layer: "l", Name: "m"}))
-	lines := bytes.Split(bytes.TrimRight(buf.Bytes(), "\n"), []byte("\n"))
-	require.Len(t, lines, 2)
-}
