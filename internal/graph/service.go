@@ -268,8 +268,9 @@ func indexOf[T comparable](xs []T, target T) int {
 }
 
 func nonNilProps(m map[string]any) map[string]any {
-	if m == nil {
-		return map[string]any{}
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
 	}
-	return m
+	return out
 }

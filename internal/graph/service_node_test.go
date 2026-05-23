@@ -127,15 +127,24 @@ func TestAddNodeAlreadyExists(t *testing.T) {
 }
 
 func TestAddNodeStoresProperties(t *testing.T) {
-	svc, fs := newService(t)
+	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
 	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
 		Domain: "cars", Layer: "system", Name: "pt",
 		Properties: map[string]any{"horsepower": float64(200)},
 	})
 	require.NoError(t, err)
+	require.Equal(t, float64(200), n.Properties["horsepower"])
+}
 
-	got, err := fs.GetNode(t.Context(), n.ID)
+func TestAddNodeDoesNotAliasInputProperties(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	props := map[string]any{"horsepower": float64(200)}
+	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
+		Domain: "cars", Layer: "system", Name: "pt", Properties: props,
+	})
 	require.NoError(t, err)
-	require.Equal(t, float64(200), got.Properties["horsepower"])
+	props["horsepower"] = float64(999)
+	require.Equal(t, float64(200), n.Properties["horsepower"], "mutating the input map must not affect the stored node")
 }
