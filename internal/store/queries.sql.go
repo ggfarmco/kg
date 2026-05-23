@@ -32,6 +32,45 @@ func (q *Queries) AppendChange(ctx context.Context, arg AppendChangeParams) erro
 	return err
 }
 
+const childrenOf = `-- name: ChildrenOf :many
+SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+FROM nodes WHERE parent_id = ? ORDER BY id
+`
+
+func (q *Queries) ChildrenOf(ctx context.Context, parentID *string) ([]Node, error) {
+	rows, err := q.db.QueryContext(ctx, childrenOf, parentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Node{}
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.Domain,
+			&i.Layer,
+			&i.Name,
+			&i.ParentID,
+			&i.Summary,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createDomain = `-- name: CreateDomain :exec
 INSERT INTO domains(id, description, layers, revision, created_at)
 VALUES (?, ?, ?, 1, ?)
@@ -54,12 +93,53 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 	return err
 }
 
+const createNode = `-- name: CreateNode :exec
+INSERT INTO nodes(id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+`
+
+type CreateNodeParams struct {
+	ID         string
+	Domain     string
+	Layer      string
+	Name       string
+	ParentID   *string
+	Summary    *string
+	Properties string
+	CreatedAt  int64
+	UpdatedAt  int64
+}
+
+func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) error {
+	_, err := q.db.ExecContext(ctx, createNode,
+		arg.ID,
+		arg.Domain,
+		arg.Layer,
+		arg.Name,
+		arg.ParentID,
+		arg.Summary,
+		arg.Properties,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
 const deleteDomain = `-- name: DeleteDomain :exec
 DELETE FROM domains WHERE id = ?
 `
 
 func (q *Queries) DeleteDomain(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteDomain, id)
+	return err
+}
+
+const deleteNode = `-- name: DeleteNode :exec
+DELETE FROM nodes WHERE id = ?
+`
+
+func (q *Queries) DeleteNode(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteNode, id)
 	return err
 }
 
@@ -78,6 +158,40 @@ func (q *Queries) GetDomain(ctx context.Context, id string) (Domain, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getNode = `-- name: GetNode :one
+SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+FROM nodes WHERE id = ?
+`
+
+func (q *Queries) GetNode(ctx context.Context, id string) (Node, error) {
+	row := q.db.QueryRowContext(ctx, getNode, id)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.Domain,
+		&i.Layer,
+		&i.Name,
+		&i.ParentID,
+		&i.Summary,
+		&i.Properties,
+		&i.Revision,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getNodeRevision = `-- name: GetNodeRevision :one
+SELECT revision FROM nodes WHERE id = ?
+`
+
+func (q *Queries) GetNodeRevision(ctx context.Context, id string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getNodeRevision, id)
+	var revision int64
+	err := row.Scan(&revision)
+	return revision, err
 }
 
 const listDomains = `-- name: ListDomains :many
@@ -111,4 +225,77 @@ func (q *Queries) ListDomains(ctx context.Context) ([]Domain, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const listNodes = `-- name: ListNodes :many
+SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+FROM nodes
+WHERE (?1 = '' OR domain = ?1)
+  AND (?2  = '' OR layer  = ?2)
+ORDER BY id
+LIMIT CASE WHEN ?3 = 0 THEN -1 ELSE ?3 END
+`
+
+type ListNodesParams struct {
+	DomainFilter interface{}
+	LayerFilter  interface{}
+	Lim          interface{}
+}
+
+func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]Node, error) {
+	rows, err := q.db.QueryContext(ctx, listNodes, arg.DomainFilter, arg.LayerFilter, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Node{}
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.Domain,
+			&i.Layer,
+			&i.Name,
+			&i.ParentID,
+			&i.Summary,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateNode = `-- name: UpdateNode :exec
+UPDATE nodes SET name = ?, summary = ?, properties = ?, revision = revision + 1, updated_at = ?
+WHERE id = ?
+`
+
+type UpdateNodeParams struct {
+	Name       string
+	Summary    *string
+	Properties string
+	UpdatedAt  int64
+	ID         string
+}
+
+func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) error {
+	_, err := q.db.ExecContext(ctx, updateNode,
+		arg.Name,
+		arg.Summary,
+		arg.Properties,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
 }
