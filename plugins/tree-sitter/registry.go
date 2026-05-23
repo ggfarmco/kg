@@ -2,19 +2,38 @@ package main
 
 import "sync"
 
+type Decl struct {
+	NameSlug   string
+	Properties map[string]any
+}
+
+type Import struct {
+	From string
+	To   string
+}
+
+type Call struct {
+	FromDecl string
+	ToDecl   string
+}
+
 type fileInfo struct {
 	AbsPath      string
 	RelPath      string
 	BasenameSlug string
 	PackagePath  string
 	Source       []byte
+	Decls        []Decl
 }
 
 type packageInfo struct {
-	Path     string
-	Slug     string
-	Files    []fileInfo
-	DeclByID map[string]struct{}
+	Path       string
+	Slug       string
+	Files      []fileInfo
+	DeclByID   map[string]struct{}
+	Imports    []Import
+	Calls      []Call
+	Properties map[string]any
 }
 
 type extractCtx struct {

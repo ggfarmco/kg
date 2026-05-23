@@ -73,7 +73,37 @@ func readStdinConfig(r io.Reader) (stdinConfig, error) {
 }
 
 func runExtraction(ctx context.Context, stdout io.Writer, stderr io.Writer, lang Language, cfg stdinConfig) error {
-	return errors.New("runExtraction wired up in Phase 6")
+	skipTests := true
+	if v, ok := cfg.Config["skip_test_files"].(bool); ok {
+		skipTests = v
+	}
+	pkgs, err := walkPackages(cfg.Input, lang.FileExtensions(), skipTests)
+	if err != nil {
+		return fmt.Errorf("walk: %w", err)
+	}
+	ec := &extractCtx{Domain: cfg.Domain, Packages: map[string]*packageInfo{}}
+	for _, p := range pkgs {
+		ec.Packages[p.Path] = p
+	}
+	for _, p := range pkgs {
+		for _, f := range p.Files {
+			if err := lang.Extract(ec, f); err != nil {
+				fmt.Fprintf(stderr, "extract %s: %v\n", f.RelPath, err)
+			}
+		}
+	}
+	for _, p := range pkgs {
+		if err := lang.ResolveCalls(ec, p); err != nil {
+			fmt.Fprintf(stderr, "resolve calls %s: %v\n", p.Path, err)
+		}
+	}
+	for _, p := range pkgs {
+		updated := ec.Packages[p.Path]
+		if updated != nil {
+			*p = *updated
+		}
+	}
+	return emitOps(stdout, lang.ID(), cfg.Domain, pkgs)
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
