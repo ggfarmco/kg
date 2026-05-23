@@ -229,6 +229,10 @@ func (s *Service) EdgesTo(ctx context.Context, dst NodeID, types []string) ([]Ed
 	return s.store.EdgesTo(ctx, dst, types)
 }
 
+func (s *Service) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	return s.store.InTx(ctx, fn)
+}
+
 func slicesContains[T comparable](haystack []T, needle T) bool {
 	for _, h := range haystack {
 		if h == needle {

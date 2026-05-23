@@ -61,9 +61,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-func newInitCmd(*cliCtx) *cobra.Command {
-	return &cobra.Command{Use: "init", Hidden: true, RunE: func(*cobra.Command, []string) error { return nil }}
-}
-func newDomainCmd(*cliCtx) *cobra.Command { return &cobra.Command{Use: "domain", Hidden: true} }
+func newInitCmd(c *cliCtx) *cobra.Command   { return newInitCmdReal(c) }
+func newDomainCmd(c *cliCtx) *cobra.Command { return newDomainCmdReal(c) }
 func newNodeCmd(*cliCtx) *cobra.Command   { return &cobra.Command{Use: "node", Hidden: true} }
 func newEdgeCmd(*cliCtx) *cobra.Command   { return &cobra.Command{Use: "edge", Hidden: true} }
