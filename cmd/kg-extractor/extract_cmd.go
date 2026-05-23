@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 
 	"github.com/spf13/cobra"
 )
@@ -105,5 +105,16 @@ func runExtract(ctx context.Context, c *cliCtx, opts *extractOpts) error {
 		_, err := c.stdout.Write(validated.Bytes())
 		return err
 	}
-	return errors.New("--db forwarding not yet implemented")
+	return forwardToKgBatch(ctx, c, opts, validated.Bytes())
+}
+
+func forwardToKgBatch(ctx context.Context, c *cliCtx, opts *extractOpts, stream []byte) error {
+	cmd := exec.CommandContext(ctx, opts.kgBinary, "--db", opts.dbPath, "batch")
+	cmd.Stdin = bytes.NewReader(stream)
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("kg batch: %w", err)
+	}
+	return nil
 }
