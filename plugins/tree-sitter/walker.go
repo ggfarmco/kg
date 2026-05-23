@@ -36,14 +36,17 @@ func walkPackages(root string, extensions []string, skipTests bool) ([]*packageI
 		if err != nil {
 			return err
 		}
-		pkgPath := filepath.ToSlash(filepath.Dir(rel))
+		relDir := filepath.ToSlash(filepath.Dir(rel))
+		pkgPath := relDir
 		if pkgPath == "." {
 			pkgPath = filepath.Base(root)
+			relDir = ""
 		}
 		pkg, ok := byPath[pkgPath]
 		if !ok {
 			pkg = &packageInfo{
 				Path:     pkgPath,
+				RelDir:   relDir,
 				Slug:     sanitizeSlug(pkgPath),
 				DeclByID: map[string]struct{}{},
 			}

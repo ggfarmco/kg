@@ -28,8 +28,9 @@ func TestEmitProducesOrderedOps(t *testing.T) {
 	}
 	pkgB := &packageInfo{Path: "b", Slug: "b", DeclByID: map[string]struct{}{}}
 
+	resolver := &importResolver{pkgBySuffix: map[string]string{"b": "b"}}
 	var buf bytes.Buffer
-	require.NoError(t, emitOps(&buf, "lang", "demo", []*packageInfo{pkg, pkgB}))
+	require.NoError(t, emitOps(&buf, "lang", "demo", []*packageInfo{pkg, pkgB}, resolver, false))
 
 	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
 	require.GreaterOrEqual(t, len(lines), 6)

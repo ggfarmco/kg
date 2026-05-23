@@ -77,6 +77,10 @@ func runExtraction(ctx context.Context, stdout io.Writer, stderr io.Writer, lang
 	if v, ok := cfg.Config["skip_test_files"].(bool); ok {
 		skipTests = v
 	}
+	includeExternalImports := false
+	if v, ok := cfg.Config["include_external_imports"].(bool); ok {
+		includeExternalImports = v
+	}
 	pkgs, err := walkPackages(cfg.Input, lang.FileExtensions(), skipTests)
 	if err != nil {
 		return fmt.Errorf("walk: %w", err)
@@ -103,7 +107,8 @@ func runExtraction(ctx context.Context, stdout io.Writer, stderr io.Writer, lang
 			*p = *updated
 		}
 	}
-	return emitOps(stdout, lang.ID(), cfg.Domain, pkgs)
+	resolver := newImportResolver(cfg.Input, pkgs)
+	return emitOps(stdout, lang.ID(), cfg.Domain, pkgs, resolver, includeExternalImports)
 }
 
 func run(args []string, stdout, stderr io.Writer) int {

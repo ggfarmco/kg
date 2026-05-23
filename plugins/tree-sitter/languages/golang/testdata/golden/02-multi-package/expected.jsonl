@@ -1,4 +1,4 @@
-{"op":"meta","args":{"plugin":"tree-sitter","language":"go","total_ops":10}}
+{"op":"meta","args":{"plugin":"tree-sitter","language":"go","total_ops":9}}
 {"op":"domain.add","args":{"id":"g","layers":["package","file","decl"],"description":"Extracted by kg-extractor-tree-sitter (go)","if_not_exists":true}}
 {"op":"node.add","args":{"domain":"g","layer":"package","name":"a","id":"a","if_not_exists":true}}
 {"op":"node.add","args":{"domain":"g","layer":"file","name":"a/a.go","id":"a/a","parent":"g:a","if_not_exists":true}}
@@ -7,4 +7,3 @@
 {"op":"node.add","args":{"domain":"g","layer":"package","name":"b","id":"b","if_not_exists":true}}
 {"op":"node.add","args":{"domain":"g","layer":"file","name":"b/b.go","id":"b/b","parent":"g:b","if_not_exists":true}}
 {"op":"node.add","args":{"domain":"g","layer":"decl","name":"b","id":"b/b::b","parent":"g:b/b","properties":{"exported":true,"kind":"function","line_end":3,"line_start":3,"name":"B","params":null,"returns":""},"if_not_exists":true}}
-{"op":"edge.add","args":{"source":"g:a","target":"g:io","type":"imports","if_not_exists":true}}

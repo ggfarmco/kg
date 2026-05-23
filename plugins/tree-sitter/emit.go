@@ -8,10 +8,41 @@ import (
 	"github.com/ggfarmco/kg/batch"
 )
 
-func emitOps(w io.Writer, language, domain string, pkgs []*packageInfo) error {
+func emitOps(w io.Writer, language, domain string, pkgs []*packageInfo, resolver *importResolver, includeExternalImports bool) error {
 	enc := batch.NewEncoder(w)
 
 	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].Path < pkgs[j].Path })
+
+	type resolvedImport struct {
+		fromSlug string
+		toSlug   string
+	}
+	type externalPkg struct {
+		slug       string
+		importPath string
+	}
+	resolvedImports := make([][]resolvedImport, len(pkgs))
+	externalsByID := map[string]externalPkg{}
+	var externalsOrder []string
+	for i, p := range pkgs {
+		for _, imp := range p.Imports {
+			toSlug, internal := resolver.Resolve(imp.To)
+			if !internal {
+				if !includeExternalImports {
+					continue
+				}
+				toSlug = "ext-" + sanitizeSlug(imp.To)
+				if _, ok := externalsByID[toSlug]; !ok {
+					externalsByID[toSlug] = externalPkg{slug: toSlug, importPath: imp.To}
+					externalsOrder = append(externalsOrder, toSlug)
+				}
+			}
+			resolvedImports[i] = append(resolvedImports[i], resolvedImport{
+				fromSlug: sanitizeSlug(imp.From),
+				toSlug:   toSlug,
+			})
+		}
+	}
 
 	var total int64
 	total += 1 + 1
@@ -21,9 +52,12 @@ func emitOps(w io.Writer, language, domain string, pkgs []*packageInfo) error {
 			total++
 			total += int64(len(f.Decls))
 		}
-		total += int64(len(p.Imports))
 		total += int64(len(p.Calls))
 	}
+	for _, ri := range resolvedImports {
+		total += int64(len(ri))
+	}
+	total += int64(len(externalsOrder))
 
 	if err := enc.Meta(batch.MetaArgs{Plugin: "tree-sitter", Language: language, TotalOps: total}); err != nil {
 		return err
@@ -68,11 +102,21 @@ func emitOps(w io.Writer, language, domain string, pkgs []*packageInfo) error {
 		}
 	}
 
-	for _, p := range pkgs {
-		for _, imp := range p.Imports {
+	for _, slug := range externalsOrder {
+		ext := externalsByID[slug]
+		if err := enc.NodeAdd(batch.NodeAddArgs{
+			Domain: domain, Layer: "package", Name: ext.importPath, ID: ext.slug,
+			Properties:  map[string]any{"external": true},
+			IfNotExists: true,
+		}); err != nil {
+			return err
+		}
+	}
+	for i := range pkgs {
+		for _, ri := range resolvedImports[i] {
 			if err := enc.EdgeAdd(batch.EdgeAddArgs{
-				Source:      domain + ":" + sanitizeSlug(imp.From),
-				Target:      domain + ":" + sanitizeSlug(imp.To),
+				Source:      domain + ":" + ri.fromSlug,
+				Target:      domain + ":" + ri.toSlug,
 				Type:        "imports",
 				IfNotExists: true,
 			}); err != nil {

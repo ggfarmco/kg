@@ -28,6 +28,7 @@ type fileInfo struct {
 
 type packageInfo struct {
 	Path       string
+	RelDir     string
 	Slug       string
 	Files      []fileInfo
 	DeclByID   map[string]struct{}
