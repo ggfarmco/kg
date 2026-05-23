@@ -175,6 +175,19 @@ func TestBatchContinueOnErrorIsolatesFailingOp(t *testing.T) {
 	require.Contains(t, out.String(), `"a:good"`, "the good node must persist even though a later op failed")
 }
 
+func TestBatchDryRunDoesNotCommit(t *testing.T) {
+	db := freshDB(t)
+	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"]}}` + "\n"
+	stdout, _, exit := execBatchCmd(t, db, stream, "--dry-run")
+	require.Equal(t, 0, exit)
+	require.Contains(t, stdout, `"dry_run": true`)
+	require.Contains(t, stdout, `"would_apply": 1`)
+
+	var out, errOut bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "domain", "list"}, &out, &errOut))
+	require.Contains(t, out.String(), `"data": []`)
+}
+
 func TestBatchChunkSizeCommitsEarlierChunks(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{

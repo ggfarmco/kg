@@ -72,6 +72,8 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 
 	start := time.Now()
 	switch {
+	case opts.dryRun:
+		return runDryRun(ctx, stdout, svc, ops, start)
 	case opts.continueOnError:
 		return runContinue(ctx, stdout, svc, ops, lines, start)
 	case opts.chunkSize > 0:
@@ -79,6 +81,41 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 	default:
 		return runAtomic(ctx, stdout, svc, ops, start)
 	}
+}
+
+type dryRunResult struct {
+	DryRun     bool `json:"dry_run"`
+	WouldApply int  `json:"would_apply"`
+	WouldSkip  int  `json:"would_skip"`
+	TookMs     int  `json:"took_ms"`
+}
+
+func runDryRun(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, start time.Time) error {
+	var applied, skipped int
+	sentinel := errors.New("dry-run rollback")
+	err := svc.InTx(ctx, func(ctx context.Context) error {
+		for _, op := range ops {
+			a, err := applyOp(ctx, svc, op)
+			if err != nil {
+				return err
+			}
+			if a {
+				applied++
+			} else {
+				skipped++
+			}
+		}
+		return sentinel
+	})
+	if errors.Is(err, sentinel) {
+		return writeOK(stdout, dryRunResult{
+			DryRun:     true,
+			WouldApply: applied,
+			WouldSkip:  skipped,
+			TookMs:     int(time.Since(start).Milliseconds()),
+		})
+	}
+	return err
 }
 
 func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, chunkSize int, start time.Time) error {
