@@ -188,6 +188,20 @@ func TestBatchDryRunDoesNotCommit(t *testing.T) {
 	require.Contains(t, out.String(), `"data": []`)
 }
 
+func TestBatchProgressEmitsToStderr(t *testing.T) {
+	db := freshDB(t)
+	stream := strings.Join([]string{
+		`{"op":"meta","args":{"total_ops":2}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"x"}}`,
+	}, "\n") + "\n"
+
+	_, stderr, exit := execBatchCmd(t, db, stream, "--progress")
+	require.Equal(t, 0, exit)
+	require.Contains(t, stderr, "applied")
+	require.Contains(t, stderr, "/2")
+}
+
 func TestBatchChunkSizeCommitsEarlierChunks(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{

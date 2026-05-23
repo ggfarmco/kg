@@ -64,10 +64,14 @@ func newBatchCmd(c *cliCtx) *cobra.Command {
 }
 
 func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.Reader, svc *graph.Service, opts batchOpts) error {
-	ops, lines, parseErr := drainStream(stdin, stderr)
+	ops, lines, total, parseErr := drainStream(stdin, stderr)
 	if parseErr != nil {
 		_ = writeErr(stdout, "INVALID_OP", parseErr.Error(), "")
 		return parseErrSentinel{parseErr}
+	}
+	var prog *progressTicker
+	if opts.progress {
+		prog = newProgressTicker(stderr, total)
 	}
 
 	start := time.Now()
@@ -75,11 +79,48 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 	case opts.dryRun:
 		return runDryRun(ctx, stdout, svc, ops, start)
 	case opts.continueOnError:
-		return runContinue(ctx, stdout, svc, ops, lines, start)
+		return runContinue(ctx, stdout, svc, ops, lines, start, prog)
 	case opts.chunkSize > 0:
-		return runChunked(ctx, stdout, svc, ops, opts.chunkSize, start)
+		return runChunked(ctx, stdout, svc, ops, opts.chunkSize, start, prog)
 	default:
-		return runAtomic(ctx, stdout, svc, ops, start)
+		return runAtomic(ctx, stdout, svc, ops, start, prog)
+	}
+}
+
+type progressTicker struct {
+	w     io.Writer
+	total int64
+	last  time.Time
+}
+
+func newProgressTicker(w io.Writer, total int64) *progressTicker {
+	return &progressTicker{w: w, total: total, last: time.Now().Add(-time.Hour)}
+}
+
+func (p *progressTicker) tick(applied int) {
+	if p == nil {
+		return
+	}
+	now := time.Now()
+	if now.Sub(p.last) < 100*time.Millisecond {
+		return
+	}
+	p.last = now
+	if p.total > 0 {
+		fmt.Fprintf(p.w, "applied %d/%d\n", applied, p.total)
+	} else {
+		fmt.Fprintf(p.w, "applied %d\n", applied)
+	}
+}
+
+func (p *progressTicker) flush(applied int) {
+	if p == nil {
+		return
+	}
+	if p.total > 0 {
+		fmt.Fprintf(p.w, "applied %d/%d\n", applied, p.total)
+	} else {
+		fmt.Fprintf(p.w, "applied %d\n", applied)
 	}
 }
 
@@ -118,7 +159,7 @@ func runDryRun(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []
 	return err
 }
 
-func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, chunkSize int, start time.Time) error {
+func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, chunkSize int, start time.Time, prog *progressTicker) error {
 	env := batchEnvelope{}
 	for i := 0; i < len(ops); i += chunkSize {
 		end := i + chunkSize
@@ -136,6 +177,7 @@ func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops [
 				}
 				if applied {
 					chunkApplied++
+					prog.tick(env.Applied + chunkApplied)
 				} else {
 					chunkSkipped++
 				}
@@ -149,11 +191,12 @@ func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops [
 		env.Applied += chunkApplied
 		env.Skipped += chunkSkipped
 	}
+	prog.flush(env.Applied)
 	env.TookMs = int(time.Since(start).Milliseconds())
 	return writeOK(stdout, env)
 }
 
-func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, start time.Time) error {
+func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, start time.Time, prog *progressTicker) error {
 	env := batchEnvelope{}
 	txErr := svc.InTx(ctx, func(ctx context.Context) error {
 		for _, op := range ops {
@@ -163,6 +206,7 @@ func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []
 			}
 			if applied {
 				env.Applied++
+				prog.tick(env.Applied)
 			} else {
 				env.Skipped++
 			}
@@ -172,11 +216,12 @@ func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []
 	if txErr != nil {
 		return txErr
 	}
+	prog.flush(env.Applied)
 	env.TookMs = int(time.Since(start).Milliseconds())
 	return writeOK(stdout, env)
 }
 
-func runContinue(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, lines []int, start time.Time) error {
+func runContinue(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, lines []int, start time.Time, prog *progressTicker) error {
 	env := batchEnvelope{}
 	failures := []batchFailure{}
 	for i, op := range ops {
@@ -196,10 +241,12 @@ func runContinue(ctx context.Context, stdout io.Writer, svc *graph.Service, ops 
 		}
 		if applied {
 			env.Applied++
+			prog.tick(env.Applied)
 		} else {
 			env.Skipped++
 		}
 	}
+	prog.flush(env.Applied)
 	env.TookMs = int(time.Since(start).Milliseconds())
 	if env.Failed == 0 {
 		return writeOK(stdout, env)
@@ -231,17 +278,15 @@ type parseErrSentinel struct{ err error }
 
 func (p parseErrSentinel) Error() string { return p.err.Error() }
 
-func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, []int, error) {
+func drainStream(r io.Reader, stderr io.Writer) (ops []batch.Op, lines []int, total int64, err error) {
 	d := batch.NewDecoder(r)
-	var ops []batch.Op
-	var lines []int
 	for {
-		op, err := d.Next()
-		if errors.Is(err, io.EOF) {
-			return ops, lines, nil
+		op, derr := d.Next()
+		if errors.Is(derr, io.EOF) {
+			return ops, lines, total, nil
 		}
-		if err != nil {
-			return nil, nil, err
+		if derr != nil {
+			return nil, nil, 0, derr
 		}
 		if op.Op == batch.OpMeta {
 			var m batch.MetaArgs
@@ -249,6 +294,9 @@ func drainStream(r io.Reader, stderr io.Writer) ([]batch.Op, []int, error) {
 				fmt.Fprintf(stderr, "meta: args parse error: %v\n", err)
 			} else {
 				fmt.Fprintf(stderr, "meta: plugin=%q total_ops=%d\n", m.Plugin, m.TotalOps)
+				if m.TotalOps > 0 {
+					total = m.TotalOps
+				}
 			}
 			continue
 		}
