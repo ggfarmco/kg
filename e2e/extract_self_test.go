@@ -62,7 +62,8 @@ func TestExtractSelf(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(decls), "::parseslug")
 
-	edges, err := exec.Command(kgBin, "--db", dbPath, "edge", "list-from", "selfg:graph").Output()
+	edges, err := exec.Command(kgBin, "--db", dbPath, "edge", "list-from", "selfg:testutil").Output()
 	require.NoError(t, err)
 	require.Contains(t, string(edges), `"imports"`)
+	require.Contains(t, string(edges), `"selfg:graph"`)
 }
