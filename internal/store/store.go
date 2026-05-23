@@ -34,6 +34,7 @@ func (s *Store) DB() *sql.DB  { return s.db }
 func runMigrations(ctx context.Context, db *sql.DB) error {
 	goose.SetBaseFS(migrations.FS)
 	defer goose.SetBaseFS(nil)
+	goose.SetLogger(noopGooseLogger{})
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("goose: set dialect: %w", err)
 	}
@@ -42,3 +43,11 @@ func runMigrations(ctx context.Context, db *sql.DB) error {
 	}
 	return nil
 }
+
+type noopGooseLogger struct{}
+
+func (noopGooseLogger) Fatal(...any)          {}
+func (noopGooseLogger) Fatalf(string, ...any) {}
+func (noopGooseLogger) Print(...any)          {}
+func (noopGooseLogger) Println(...any)        {}
+func (noopGooseLogger) Printf(string, ...any) {}
