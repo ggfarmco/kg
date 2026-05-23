@@ -46,3 +46,15 @@ func (s *Service) AddDomain(ctx context.Context, in AddDomainInput) (*Domain, er
 	}
 	return &d, nil
 }
+
+func (s *Service) GetDomain(ctx context.Context, id DomainID) (*Domain, error) {
+	return s.store.GetDomain(ctx, id)
+}
+
+func (s *Service) ListDomains(ctx context.Context) ([]Domain, error) {
+	return s.store.ListDomains(ctx)
+}
+
+func (s *Service) DeleteDomain(ctx context.Context, id DomainID) error {
+	return s.store.DeleteDomain(ctx, id)
+}

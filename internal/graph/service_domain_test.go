@@ -55,3 +55,35 @@ func TestAddDomainAlreadyExists(t *testing.T) {
 	_, err = svc.AddDomain(t.Context(), in)
 	require.ErrorIs(t, err, graph.ErrDomainAlreadyExists)
 }
+
+func TestGetDomainNotFound(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.GetDomain(t.Context(), "missing")
+	require.ErrorIs(t, err, graph.ErrDomainNotFound)
+}
+
+func TestListDomainsSorted(t *testing.T) {
+	svc, _ := newService(t)
+	for _, id := range []string{"physics", "cars", "music"} {
+		_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: id, Layers: []string{"x"}})
+		require.NoError(t, err)
+	}
+	got, err := svc.ListDomains(t.Context())
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	require.Equal(t, graph.DomainID("cars"), got[0].ID)
+	require.Equal(t, graph.DomainID("music"), got[1].ID)
+	require.Equal(t, graph.DomainID("physics"), got[2].ID)
+}
+
+func TestDeleteDomain(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: []string{"x"}})
+	require.NoError(t, err)
+	require.NoError(t, svc.DeleteDomain(t.Context(), "cars"))
+
+	_, err = svc.GetDomain(t.Context(), "cars")
+	require.ErrorIs(t, err, graph.ErrDomainNotFound)
+
+	require.ErrorIs(t, svc.DeleteDomain(t.Context(), "cars"), graph.ErrDomainNotFound)
+}
