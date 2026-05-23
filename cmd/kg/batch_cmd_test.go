@@ -174,3 +174,21 @@ func TestBatchContinueOnErrorIsolatesFailingOp(t *testing.T) {
 	require.Equal(t, 0, run([]string{"--db", db, "node", "list", "--domain", "a"}, &out, &errOut))
 	require.Contains(t, out.String(), `"a:good"`, "the good node must persist even though a later op failed")
 }
+
+func TestBatchChunkSizeCommitsEarlierChunks(t *testing.T) {
+	db := freshDB(t)
+	stream := strings.Join([]string{
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"a"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"b"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+	}, "\n") + "\n"
+
+	_, _, exit := execBatchCmd(t, db, stream, "--chunk-size", "2")
+	require.NotEqual(t, 0, exit)
+
+	var out, errOut bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "node", "list", "--domain", "a"}, &out, &errOut))
+	require.Contains(t, out.String(), `"a:a"`)
+	require.NotContains(t, out.String(), `"a:b"`)
+}

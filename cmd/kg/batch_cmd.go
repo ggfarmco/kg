@@ -74,9 +74,46 @@ func runBatch(ctx context.Context, stdout io.Writer, stderr io.Writer, stdin io.
 	switch {
 	case opts.continueOnError:
 		return runContinue(ctx, stdout, svc, ops, lines, start)
+	case opts.chunkSize > 0:
+		return runChunked(ctx, stdout, svc, ops, opts.chunkSize, start)
 	default:
 		return runAtomic(ctx, stdout, svc, ops, start)
 	}
+}
+
+func runChunked(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, chunkSize int, start time.Time) error {
+	env := batchEnvelope{}
+	for i := 0; i < len(ops); i += chunkSize {
+		end := i + chunkSize
+		if end > len(ops) {
+			end = len(ops)
+		}
+		chunk := ops[i:end]
+		var chunkApplied, chunkSkipped int
+		txErr := svc.InTx(ctx, func(ctx context.Context) error {
+			chunkApplied, chunkSkipped = 0, 0
+			for _, op := range chunk {
+				applied, err := applyOp(ctx, svc, op)
+				if err != nil {
+					return err
+				}
+				if applied {
+					chunkApplied++
+				} else {
+					chunkSkipped++
+				}
+			}
+			return nil
+		})
+		if txErr != nil {
+			env.TookMs = int(time.Since(start).Milliseconds())
+			return txErr
+		}
+		env.Applied += chunkApplied
+		env.Skipped += chunkSkipped
+	}
+	env.TookMs = int(time.Since(start).Milliseconds())
+	return writeOK(stdout, env)
 }
 
 func runAtomic(ctx context.Context, stdout io.Writer, svc *graph.Service, ops []batch.Op, start time.Time) error {
