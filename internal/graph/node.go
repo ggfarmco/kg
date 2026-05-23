@@ -13,16 +13,16 @@ type (
 )
 
 type Node struct {
-	ID         NodeID
-	Domain     DomainID
-	Layer      string
-	Name       string
-	ParentID   *NodeID
-	Summary    string
-	Properties map[string]any
-	Revision   int64
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         NodeID         `json:"id"`
+	Domain     DomainID       `json:"domain"`
+	Layer      string         `json:"layer"`
+	Name       string         `json:"name"`
+	ParentID   *NodeID        `json:"parent_id"`
+	Summary    string         `json:"summary"`
+	Properties map[string]any `json:"properties"`
+	Revision   int64          `json:"revision"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
 }
 
 type NodeFilter struct {

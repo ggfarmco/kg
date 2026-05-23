@@ -5,11 +5,11 @@ import "time"
 type DomainID string
 
 type Domain struct {
-	ID          DomainID
-	Description string
-	Layers      []string
-	Revision    int64
-	CreatedAt   time.Time
+	ID          DomainID  `json:"id"`
+	Description string    `json:"description"`
+	Layers      []string  `json:"layers"`
+	Revision    int64     `json:"revision"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func ParseDomainID(s string) (DomainID, error) {

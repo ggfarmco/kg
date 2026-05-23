@@ -36,7 +36,7 @@ func TestEdgeWalkthrough(t *testing.T) {
 	var env envelope
 	require.NoError(t, json.Unmarshal([]byte(body), &env))
 	data := env.Data.(map[string]any)
-	id := int64(data["ID"].(float64))
+	id := int64(data["id"].(float64))
 	require.NotZero(t, id)
 
 	code, body = runCLI(dbPath, "edge", "list-from", "cars:a")
