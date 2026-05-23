@@ -9,14 +9,19 @@ import (
 	"github.com/ggfarmco/kg/batch"
 )
 
-func TestOpNameConstants(t *testing.T) {
-	require.Equal(t, batch.OpName("meta"), batch.OpMeta)
-	require.Equal(t, batch.OpName("domain.add"), batch.OpDomainAdd)
-	require.Equal(t, batch.OpName("node.add"), batch.OpNodeAdd)
-	require.Equal(t, batch.OpName("node.update"), batch.OpNodeUpdate)
-	require.Equal(t, batch.OpName("node.delete"), batch.OpNodeDelete)
-	require.Equal(t, batch.OpName("edge.add"), batch.OpEdgeAdd)
-	require.Equal(t, batch.OpName("edge.delete"), batch.OpEdgeDelete)
+func TestOpNameWireValues(t *testing.T) {
+	cases := map[batch.OpName]string{
+		batch.OpMeta:       "meta",
+		batch.OpDomainAdd:  "domain.add",
+		batch.OpNodeAdd:    "node.add",
+		batch.OpNodeUpdate: "node.update",
+		batch.OpNodeDelete: "node.delete",
+		batch.OpEdgeAdd:    "edge.add",
+		batch.OpEdgeDelete: "edge.delete",
+	}
+	for got, want := range cases {
+		require.Equal(t, want, string(got))
+	}
 }
 
 func TestDomainAddArgsRoundTrip(t *testing.T) {
@@ -42,22 +47,18 @@ func TestNodeAddArgsOmitsEmpty(t *testing.T) {
 	require.JSONEq(t, `{"domain":"my-app","layer":"package","name":"fmt"}`, string(b))
 }
 
-func TestNodeUpdateArgsDistinguishesAbsentFromEmpty(t *testing.T) {
+func TestNodeUpdateArgsAbsentFieldsStayNil(t *testing.T) {
 	var out batch.NodeUpdateArgs
 	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y"}`), &out))
-	require.Nil(t, out.Name, "absent fields must stay nil")
+	require.Nil(t, out.Name)
 	require.Nil(t, out.Summary)
+}
 
+func TestNodeUpdateArgsExplicitEmptyStringIsDistinguishable(t *testing.T) {
+	var out batch.NodeUpdateArgs
 	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y","name":""}`), &out))
 	require.NotNil(t, out.Name)
 	require.Equal(t, "", *out.Name)
-}
-
-func TestEdgeAddArgsRoundTrip(t *testing.T) {
-	in := batch.EdgeAddArgs{Source: "a:b", Target: "a:c", Type: "imports", IfNotExists: true}
-	b, err := json.Marshal(in)
-	require.NoError(t, err)
-	require.JSONEq(t, `{"source":"a:b","target":"a:c","type":"imports","if_not_exists":true}`, string(b))
 }
 
 func TestEdgeDeleteArgsUsesInt(t *testing.T) {

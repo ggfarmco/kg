@@ -32,8 +32,8 @@ type DomainAddArgs struct {
 	ID          string         `json:"id"`
 	Layers      []string       `json:"layers"`
 	Description string         `json:"description,omitempty"`
-	IfNotExists bool           `json:"if_not_exists,omitempty"`
 	Properties  map[string]any `json:"properties,omitempty"`
+	IfNotExists bool           `json:"if_not_exists,omitempty"`
 }
 
 type NodeAddArgs struct {
