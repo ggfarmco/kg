@@ -1,6 +1,7 @@
 ---
-name: kg-enrich
 description: Orchestrates LLM enrichment over a kg knowledge graph. Reads structural data extracted by tree-sitter, dispatches batched file-summarizer agents (5 parallel) to add per-decl summaries + semantic edges, then runs architecture-analyzer and tour-builder. Outputs a summary report. Use when the user wants to enrich an already-extracted kg.db.
+argument-hint: [--domain <id>] [--source <id>] [--max-files <N>]
+allowed-tools: Read, Bash, Task, AskUserQuestion
 ---
 
 # /kg-enrich
@@ -52,7 +53,7 @@ Run these in sequence; abort with a clear error if any fail.
 ## Phase 1 — Dump file list
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/dump-files.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/dump-files.sh" \
   "<domain>" "<source>" > .kg-enrich-tmp/files.json
 ```
 
@@ -67,7 +68,7 @@ For each batch N:
 1. Write `.kg-enrich-tmp/batch-N-files.json` (the batch's slice of `files.json`).
 2. Run `dump-batch-context.sh` to enrich with per-file decl info:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/dump-batch-context.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/dump-batch-context.sh" \
      ".kg-enrich-tmp/batch-N-files.json" "<source>" \
      > ".kg-enrich-tmp/batch-N-input.json"
    ```
@@ -82,7 +83,7 @@ Each dispatch:
 Task(
   subagent_type="file-summarizer",
   description="Enrich batch N",
-  prompt=<<contents of .kg-enrich-tmp/batch-N-input.json plus a one-line preamble: "You are batch N of M. Process every file in this batch. Pipe your snapshot to: bash ${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/apply-snapshot.sh kg-summary:0.1.0 <domain> additive">>
+  prompt=<<contents of .kg-enrich-tmp/batch-N-input.json plus a one-line preamble: "You are batch N of M. Process every file in this batch. Pipe your snapshot to: bash ${CLAUDE_PLUGIN_ROOT}/scripts/apply-snapshot.sh kg-summary:0.1.0 <domain> additive">>
 )
 ```
 
@@ -95,7 +96,7 @@ Collect results. Track `succeeded[]` and `failed[]` lists of batch IDs.
 Generate graph shape input:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/dump-graph-shape.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/dump-graph-shape.sh" \
   "<domain>" "<source>" > .kg-enrich-tmp/graph-shape.json
 ```
 
@@ -116,7 +117,7 @@ If it fails: record the failure but DO NOT abort. Tour-builder can run without a
 Generate topology:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/dump-topology.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/dump-topology.sh" \
   "<domain>" "<source>" > .kg-enrich-tmp/topology.json
 ```
 

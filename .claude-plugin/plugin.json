@@ -1,8 +1,6 @@
 {
   "name": "kg",
-  "displayName": "kg Knowledge Graph",
   "version": "0.3.0",
   "description": "LLM-driven enrichment over kg structural extraction. Generates per-decl summaries, semantic edges, architectural layers, and pedagogical tours for codebases ingested via the kg engine. Requires `kg` CLI on PATH.",
-  "skills": "./skills",
-  "agents": "./agents"
+  "author": { "name": "ggfarmco" }
 }

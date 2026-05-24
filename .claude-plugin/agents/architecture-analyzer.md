@@ -95,7 +95,7 @@ You infer the architectural layers of a codebase from its package structure and 
 
 ```bash
 echo "$snapshot_json" \
-  | bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/apply-snapshot.sh" \
+  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/apply-snapshot.sh" \
       kg-arch:0.1.0 "<orig>-arch" domain-source
 ```
 

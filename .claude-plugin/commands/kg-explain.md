@@ -1,6 +1,7 @@
 ---
-name: kg-explain
 description: Read-only. Answers questions about a specific kg node using its enriched properties + 1-hop neighborhood. No graph mutation. Use when the user wants to understand what a specific function, file, or package does in context.
+argument-hint: <node-id>
+allowed-tools: Read, Bash
 ---
 
 # /kg-explain

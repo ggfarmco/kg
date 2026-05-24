@@ -118,7 +118,7 @@ After processing every file in the batch, emit ONE snapshot JSON and pipe it to 
 
 ```bash
 echo "$snapshot_json" \
-  | bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/apply-snapshot.sh" \
+  | bash "${CLAUDE_PLUGIN_ROOT}/scripts/apply-snapshot.sh" \
       kg-summary:0.1.0 "<input.domain>" additive
 ```
 

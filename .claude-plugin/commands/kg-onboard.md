@@ -1,6 +1,7 @@
 ---
-name: kg-onboard
 description: Generates a markdown onboarding document (default path `docs/ONBOARDING.md`) from an enriched kg graph. Combines the project description, architectural overview, and tour steps with cross-references to file paths and decl summaries. Use after /kg-enrich.
+argument-hint: [--domain <id>] [--output <path>] [--arch-domain <id>] [--tours-domain <id>]
+allowed-tools: Read, Bash, Write, AskUserQuestion
 ---
 
 # /kg-onboard

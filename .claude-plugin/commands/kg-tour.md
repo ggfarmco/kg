@@ -1,6 +1,7 @@
 ---
-name: kg-tour
 description: Re-runs only the tour-builder agent against an already-enriched kg graph. Use when the user wants to regenerate /kg-onboard's source material without re-running file-summarizer or architecture-analyzer. Faster + cheaper than /kg-enrich.
+argument-hint: [--domain <id>] [--source <id>] [--arch-domain <id>]
+allowed-tools: Read, Bash, Task
 ---
 
 # /kg-tour
@@ -24,7 +25,7 @@ Same first 4 checks as /kg-enrich. Plus:
 1. **Generate topology:**
    ```bash
    mkdir -p .kg-enrich-tmp
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/kg-enrich/scripts/dump-topology.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/dump-topology.sh" \
      "<domain>" "<source>" > .kg-enrich-tmp/topology.json
    ```
 
