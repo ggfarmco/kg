@@ -4,7 +4,7 @@
   "plugins": [
     {
       "name": "kg",
-      "source": ".",
+      "source": "./kg-plugin",
       "description": "LLM-driven enrichment over kg structural extraction. Generates per-decl summaries, semantic edges, architectural layers, and pedagogical tours for codebases ingested via the kg engine.",
       "version": "0.3.0"
     }

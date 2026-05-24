@@ -41,4 +41,4 @@ e2e-enrich: build build-extractor build-plugin-treesitter
 	LLM_ENABLED=1 go test -tags=e2e_enrich -v -timeout=15m ./e2e/...
 
 test-scripts:
-	@find .claude-plugin -name '*.test.sh' -print -exec bash {} \;
+	@find kg-plugin -name '*.test.sh' -print -exec bash {} \;
