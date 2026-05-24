@@ -58,3 +58,20 @@ func TestExportEmptySource(t *testing.T) {
 	require.Contains(t, s, `"nodes": []`)
 	require.Contains(t, s, `"edges": []`)
 }
+
+func TestExportFiltersCrossDomainEdges(t *testing.T) {
+	dbPath := freshDB(t)
+	runOKBytes(t, dbPath, "domain", "add", "a", "--layers", "pkg,file", "--description", "")
+	runOKBytes(t, dbPath, "domain", "add", "b", "--layers", "pkg,file", "--description", "")
+	runOKBytes(t, dbPath, "node", "add", "--domain", "a", "--layer", "pkg", "--id", "p", "--name", "p")
+	runOKBytes(t, dbPath, "node", "add", "--domain", "a", "--layer", "file", "--id", "p/x", "--parent", "a:p", "--name", "x")
+	runOKBytes(t, dbPath, "node", "add", "--domain", "b", "--layer", "pkg", "--id", "p", "--name", "p")
+	runOKBytes(t, dbPath, "node", "add", "--domain", "b", "--layer", "file", "--id", "p/x", "--parent", "b:p", "--name", "x")
+	runOKBytes(t, dbPath, "edge", "add", "a:p/x", "a:p", "--type", "contains")
+	runOKBytes(t, dbPath, "edge", "add", "b:p/x", "b:p", "--type", "contains")
+
+	out := runOKBytes(t, dbPath, "export", "--domain", "a", "--source", "cli")
+	s := string(out)
+	require.Contains(t, s, `"a:p/x"`, "domain a's node included")
+	require.NotContains(t, s, `"b:p/x"`, "domain b's edge endpoint must be filtered out")
+}

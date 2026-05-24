@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -63,10 +64,14 @@ func newExportCmd(c *cliCtx) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			prefix := domain + ":"
 			for _, eid := range claimedIDs {
 				e, err := svc.GetEdge(cmd.Context(), eid)
 				if err != nil {
 					return err
+				}
+				if !strings.HasPrefix(string(e.SourceID), prefix) || !strings.HasPrefix(string(e.TargetID), prefix) {
+					continue
 				}
 				snap.Edges = append(snap.Edges, snapshot.EdgeSpec{
 					Src: string(e.SourceID), Target: string(e.TargetID),

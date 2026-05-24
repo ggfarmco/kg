@@ -137,7 +137,9 @@ Task(
 Compute and print:
 
 ```bash
-nodes_enriched=$(kg node list --domain "<domain>" --source kg-summary:0.1.0 --limit 0 | jq '.data | length')
+nodes_enriched=$(kg node list --domain "<domain>" --limit 0 \
+  | jq '[.data[] | select(.properties["kg-summary:0.1.0"] != null)] | length')
+semantic_edges=$(kg export --domain "<domain>" --source kg-summary:0.1.0 | jq '.edges | length')
 arch_layers=$(kg node list --domain "<domain>-arch" --source kg-arch:0.1.0 --limit 0 2>/dev/null | jq '.data | length // 0')
 tour_steps=$(kg node list --domain "<domain>-tours" --source kg-tours:0.1.0 --limit 0 2>/dev/null | jq '.data | length // 0')
 ```
@@ -152,7 +154,7 @@ Print to user:
 
 Graph deltas:
   nodes enriched (kg-summary:0.1.0): <nodes_enriched>
-  semantic edges added: <count from kg edge list ... > (heuristic: use `kg edge list --source kg-summary:0.1.0 | jq '.data | length'`)
+  semantic edges added: <semantic_edges>
   arch layers (<domain>-arch): <arch_layers>
   tour steps (<domain>-tours): <tour_steps>
 
