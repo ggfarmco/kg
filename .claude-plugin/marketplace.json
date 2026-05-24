@@ -1,0 +1,6 @@
+{
+  "schema": "marketplace-v1",
+  "name": "kg",
+  "repository": "github.com/ggfarmco/kg",
+  "plugin": "./.claude-plugin"
+}
