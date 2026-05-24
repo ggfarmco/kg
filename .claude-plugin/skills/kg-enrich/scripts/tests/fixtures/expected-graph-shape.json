@@ -1,0 +1,23 @@
+{
+  "packages": [
+    {
+      "slug": "myapp:cmd",
+      "name": "cmd",
+      "path": "/abs/cmd",
+      "files": [
+        { "node_id": "myapp:cmd/main-go", "path": "/abs/cmd/main.go", "name": "main.go" }
+      ]
+    },
+    {
+      "slug": "myapp:internal-handler",
+      "name": "handler",
+      "path": "/abs/internal/handler",
+      "files": [
+        { "node_id": "myapp:internal-handler/serve-go", "path": "/abs/internal/handler/serve.go", "name": "serve.go" }
+      ]
+    }
+  ],
+  "imports": [
+    { "from": "myapp:cmd/main-go", "to": "myapp:internal-handler/serve-go" }
+  ]
+}

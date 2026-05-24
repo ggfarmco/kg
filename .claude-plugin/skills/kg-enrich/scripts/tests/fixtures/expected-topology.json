@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "node_id": "myapp:cmd/main-go",
+      "name": "main.go",
+      "path": "/abs/cmd/main.go",
+      "score": 5
+    }
+  ],
+  "hotspots": [
+    {
+      "node_id": "myapp:internal-handler/serve-go",
+      "name": "serve.go",
+      "path": "/abs/internal/handler/serve.go",
+      "fan_in": 1,
+      "fan_out": 0
+    },
+    {
+      "node_id": "myapp:cmd/main-go",
+      "name": "main.go",
+      "path": "/abs/cmd/main.go",
+      "fan_in": 0,
+      "fan_out": 1
+    }
+  ],
+  "edges": [
+    { "from": "myapp:cmd/main-go", "to": "myapp:internal-handler/serve-go" }
+  ]
+}

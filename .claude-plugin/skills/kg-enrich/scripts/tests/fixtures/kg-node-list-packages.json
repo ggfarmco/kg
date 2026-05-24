@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "id": "myapp:cmd",
+      "name": "cmd",
+      "layer": "package",
+      "source": "tree-sitter:0.2.0",
+      "properties": { "tree-sitter:0.2.0": { "path": "/abs/cmd" } }
+    },
+    {
+      "id": "myapp:internal-handler",
+      "name": "handler",
+      "layer": "package",
+      "source": "tree-sitter:0.2.0",
+      "properties": { "tree-sitter:0.2.0": { "path": "/abs/internal/handler" } }
+    }
+  ]
+}
