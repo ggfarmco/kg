@@ -1,0 +1,92 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,         goos: darwin, goarch: arm64 }
+          - { os: macos-13,         goos: darwin, goarch: amd64 }
+          - { os: ubuntu-24.04,     goos: linux,  goarch: amd64 }
+          - { os: ubuntu-24.04-arm, goos: linux,  goarch: arm64 }
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build native binaries
+        run: make build build-extractor build-plugin-treesitter
+
+      - name: Verify binaries are runnable
+        run: |
+          ./bin/kg --version || ./bin/kg --help | head -3
+          ./bin/kg-extractor --help | head -3 || true
+          file ./bin/kg-extractor-tree-sitter
+
+      - name: Package tarball
+        env:
+          TAG: ${{ github.ref_name }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          STAGING=$(mktemp -d)
+          cp bin/kg bin/kg-extractor bin/kg-extractor-tree-sitter "$STAGING/"
+          cp plugins/tree-sitter/manifest.json "$STAGING/"
+          cp README.md LICENSE "$STAGING/"
+          chmod +x "$STAGING/"kg "$STAGING/"kg-extractor "$STAGING/"kg-extractor-tree-sitter
+          TARBALL="kg_${TAG}_${GOOS}_${GOARCH}.tar.gz"
+          tar -C "$STAGING" -czf "$TARBALL" \
+            kg kg-extractor kg-extractor-tree-sitter manifest.json README.md LICENSE
+          ls -la "$TARBALL"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kg-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: kg_*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Stage tarballs + compute checksums
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir release-assets
+          find artifacts -name 'kg_*.tar.gz' -exec mv {} release-assets/ \;
+          ls -la release-assets/
+          cd release-assets
+          sha256sum kg_*.tar.gz > checksums.txt
+          cat checksums.txt
+          test "$(ls kg_*.tar.gz | wc -l)" -eq 4 || { echo "expected 4 tarballs, found $(ls kg_*.tar.gz | wc -l)"; exit 1; }
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        working-directory: release-assets
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            kg_*.tar.gz checksums.txt
