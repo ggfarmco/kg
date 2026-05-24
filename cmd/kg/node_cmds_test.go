@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"path/filepath"
 	"testing"
@@ -52,4 +53,33 @@ func TestNodeAddIfNotExistsSkips(t *testing.T) {
 	code, body := runCLI(dbPath, "node", "add", "--domain", "cars", "--layer", "system", "--name", "PT", "--if-not-exists")
 	require.Equal(t, 0, code, body)
 	require.Contains(t, body, `"skipped": true`)
+}
+
+func TestNodeGetMergedView(t *testing.T) {
+	db := freshDB(t)
+	require.Equal(t, 0, run([]string{"--db", db, "domain", "add", "d", "--layers", "l1", "--source", "cli"}, new(bytes.Buffer), new(bytes.Buffer)))
+	require.Equal(t, 0, run([]string{"--db", db, "node", "add",
+		"--domain", "d", "--layer", "l1", "--name", "n",
+		"--source", "a", "--properties", `{"k":"va"}`}, new(bytes.Buffer), new(bytes.Buffer)))
+	require.Equal(t, 0, run([]string{"--db", db, "node", "update", "d:n",
+		"--source", "b", "--properties", `{"j":"vb"}`}, new(bytes.Buffer), new(bytes.Buffer)))
+
+	var out bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "node", "get", "d:n", "--merged"}, &out, new(bytes.Buffer)))
+	require.Contains(t, out.String(), `"k": "va"`)
+	require.Contains(t, out.String(), `"j": "vb"`)
+	require.Contains(t, out.String(), `"_property_sources"`)
+}
+
+func TestNodeGetSourceFiltersToOneNamespace(t *testing.T) {
+	db := freshDB(t)
+	require.Equal(t, 0, run([]string{"--db", db, "domain", "add", "d", "--layers", "l1", "--source", "cli"}, new(bytes.Buffer), new(bytes.Buffer)))
+	require.Equal(t, 0, run([]string{"--db", db, "node", "add",
+		"--domain", "d", "--layer", "l1", "--name", "n",
+		"--source", "a", "--properties", `{"k":"va"}`}, new(bytes.Buffer), new(bytes.Buffer)))
+
+	var out bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "node", "get", "d:n", "--source", "a"}, &out, new(bytes.Buffer)))
+	require.Contains(t, out.String(), `"k": "va"`)
+	require.NotContains(t, out.String(), `"properties": {`, "flat properties view")
 }

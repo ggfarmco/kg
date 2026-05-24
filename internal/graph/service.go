@@ -287,6 +287,10 @@ func (s *Service) DeleteNode(ctx context.Context, id NodeID, source SourceID) er
 	return s.store.DeleteNode(ctx, id)
 }
 
+func (s *Service) ForceDeleteNode(ctx context.Context, id NodeID) error {
+	return s.store.DeleteNode(ctx, id)
+}
+
 type AddEdgeInput struct {
 	Source       string
 	Target       string

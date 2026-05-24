@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -19,7 +21,7 @@ func newNodeCmdReal(c *cliCtx) *cobra.Command {
 }
 
 func newNodeAddCmd(c *cliCtx) *cobra.Command {
-	var domain, layer, name, id, parent, source, summary string
+	var domain, layer, name, id, parent, source, summary, propertiesJSON string
 	var ifNotExists, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "add",
@@ -31,6 +33,11 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 			}
 			defer closeFn()
 			in := graph.AddNodeInput{Domain: domain, Layer: layer, Name: name, ID: id, Parent: parent, Source: source}
+			if propertiesJSON != "" {
+				if err := json.Unmarshal([]byte(propertiesJSON), &in.Properties); err != nil {
+					return fmt.Errorf("--properties: %w", err)
+				}
+			}
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
@@ -58,6 +65,7 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 	cmd.Flags().StringVar(&parent, "parent", "", "parent node id (required unless top layer)")
 	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
 	cmd.Flags().StringVar(&summary, "summary", "", "optional summary text")
+	cmd.Flags().StringVar(&propertiesJSON, "properties", "", "JSON object of properties for this source's namespace")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "skip with exit 0 if the node already exists")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
 	for _, f := range []string{"domain", "layer", "name"} {
@@ -67,10 +75,12 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 }
 
 func newNodeGetCmd(c *cliCtx) *cobra.Command {
-	return &cobra.Command{
+	var source string
+	var merged bool
+	cmd := &cobra.Command{
 		Use:   "get <node-id>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Get a node by id",
+		Short: "Get a node (default: raw namespaced properties)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, closeFn, err := c.openSvc(c.dbPath)
 			if err != nil {
@@ -81,9 +91,22 @@ func newNodeGetCmd(c *cliCtx) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			switch {
+			case source != "":
+				return writeOK(c.stdout, nodeFlattenedView(*n, graph.SourceID(source)))
+			case merged:
+				ss, err := svc.ListSources(cmd.Context())
+				if err != nil {
+					return err
+				}
+				return writeOK(c.stdout, nodeMergedView(*n, ss))
+			}
 			return writeOK(c.stdout, n)
 		},
 	}
+	cmd.Flags().StringVar(&source, "source", "", "show only this source's namespace (flattened)")
+	cmd.Flags().BoolVar(&merged, "merged", false, "trust-ranked union of all namespaces with _property_sources attribution")
+	return cmd
 }
 
 func newNodeListCmd(c *cliCtx) *cobra.Command {
@@ -134,27 +157,28 @@ func newNodeChildrenCmd(c *cliCtx) *cobra.Command {
 }
 
 func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
-	var name, source, summary string
+	var name, source, summary, propertiesJSON string
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "update <node-id>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Update a node's name or summary",
+		Short: "Update a node's name (owner only) or properties (any writer, within own namespace)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, closeFn, err := c.openSvc(c.dbPath)
 			if err != nil {
 				return err
 			}
 			defer closeFn()
-			in := graph.UpdateNodeInput{Source: graph.SourceID(source)}
-			if cmd.Flags().Changed("name") {
-				in.Name = &name
-			}
+			id := graph.NodeID(args[0])
 			_ = summary
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
-					if _, err := svc.UpdateNode(ctx, graph.NodeID(args[0]), in); err != nil {
+					in := graph.UpdateNodeInput{Source: graph.SourceID(source)}
+					if cmd.Flags().Changed("name") {
+						in.Name = &name
+					}
+					if _, err := svc.UpdateNode(ctx, id, in); err != nil {
 						return err
 					}
 					return sentinel
@@ -164,7 +188,23 @@ func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
 				}
 				return err
 			}
-			n, err := svc.UpdateNode(cmd.Context(), graph.NodeID(args[0]), in)
+			if cmd.Flags().Changed("name") {
+				if _, err := svc.UpdateNode(cmd.Context(), id, graph.UpdateNodeInput{
+					Source: graph.SourceID(source), Name: &name,
+				}); err != nil {
+					return err
+				}
+			}
+			if propertiesJSON != "" {
+				var props map[string]any
+				if err := json.Unmarshal([]byte(propertiesJSON), &props); err != nil {
+					return fmt.Errorf("--properties: %w", err)
+				}
+				if err := svc.SetNodeProperties(cmd.Context(), id, graph.SourceID(source), props); err != nil {
+					return err
+				}
+			}
+			n, err := svc.GetNode(cmd.Context(), id)
 			if err != nil {
 				return err
 			}
@@ -172,14 +212,16 @@ func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "new name")
-	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id (default cli)")
 	cmd.Flags().StringVar(&summary, "summary", "", "new summary")
+	cmd.Flags().StringVar(&propertiesJSON, "properties", "", "JSON object of properties for this source's namespace")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
 	return cmd
 }
 
 func newNodeDeleteCmd(c *cliCtx) *cobra.Command {
 	var source string
+	var forceCascade bool
 	cmd := &cobra.Command{
 		Use:   "delete <node-id>",
 		Args:  cobra.ExactArgs(1),
@@ -191,12 +233,78 @@ func newNodeDeleteCmd(c *cliCtx) *cobra.Command {
 			}
 			defer closeFn()
 			id := graph.NodeID(args[0])
-			if err := svc.DeleteNode(cmd.Context(), id, graph.SourceID(source)); err != nil {
-				return err
+			if forceCascade {
+				if err := svc.ForceDeleteNode(cmd.Context(), id); err != nil {
+					return err
+				}
+			} else {
+				if err := svc.DeleteNode(cmd.Context(), id, graph.SourceID(source)); err != nil {
+					return err
+				}
 			}
 			return writeOK(c.stdout, map[string]any{"deleted": true, "id": id})
 		},
 	}
 	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
+	cmd.Flags().BoolVar(&forceCascade, "force-cascade", false, "drop the node ignoring foreign claims and children")
 	return cmd
+}
+
+func nodeFlattenedView(n graph.Node, source graph.SourceID) map[string]any {
+	out := map[string]any{
+		"id":         n.ID,
+		"domain":     n.Domain,
+		"layer":      n.Layer,
+		"name":       n.Name,
+		"parent_id":  n.ParentID,
+		"source":     n.Source,
+		"revision":   n.Revision,
+		"created_at": n.CreatedAt,
+		"updated_at": n.UpdatedAt,
+	}
+	for k, v := range n.Properties[source] {
+		out[k] = v
+	}
+	return out
+}
+
+func nodeMergedView(n graph.Node, sources []graph.Source) map[string]any {
+	trustOf := map[graph.SourceID]int{}
+	for _, s := range sources {
+		trustOf[s.ID] = s.Trust
+	}
+	type contrib struct {
+		source graph.SourceID
+		trust  int
+		value  any
+	}
+	keys := map[string]contrib{}
+	for src, m := range n.Properties {
+		t := trustOf[src]
+		for k, v := range m {
+			c, ok := keys[k]
+			if !ok || t > c.trust || (t == c.trust && src < c.source) {
+				keys[k] = contrib{source: src, trust: t, value: v}
+			}
+		}
+	}
+	props := map[string]any{}
+	srcs := map[string]string{}
+	for k, c := range keys {
+		props[k] = c.value
+		srcs[k] = string(c.source)
+	}
+	return map[string]any{
+		"id":                n.ID,
+		"domain":            n.Domain,
+		"layer":             n.Layer,
+		"name":              n.Name,
+		"parent_id":         n.ParentID,
+		"source":            n.Source,
+		"properties":        props,
+		"_property_sources": srcs,
+		"revision":          n.Revision,
+		"created_at":        n.CreatedAt,
+		"updated_at":        n.UpdatedAt,
+	}
 }

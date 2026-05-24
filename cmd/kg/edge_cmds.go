@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -12,7 +13,8 @@ import (
 
 func newEdgeCmdReal(c *cliCtx) *cobra.Command {
 	cmd := &cobra.Command{Use: "edge", Short: "Manage edges"}
-	cmd.AddCommand(newEdgeAddCmd(c), newEdgeListFromCmd(c), newEdgeListToCmd(c), newEdgeDeleteCmd(c))
+	cmd.AddCommand(newEdgeAddCmd(c), newEdgeListFromCmd(c), newEdgeListToCmd(c),
+		newEdgeUnclaimCmd(c), newEdgeClaimsCmd(c), newEdgeDeleteCmd(c))
 	return cmd
 }
 
@@ -112,20 +114,74 @@ func newEdgeListToCmd(c *cliCtx) *cobra.Command {
 	return cmd
 }
 
-func newEdgeDeleteCmd(c *cliCtx) *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete <edge-id>",
+func newEdgeUnclaimCmd(c *cliCtx) *cobra.Command {
+	var source string
+	cmd := &cobra.Command{
+		Use:   "unclaim <edge-id>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Delete an edge",
+		Short: "Remove caller's claim on the edge (GCs the edge if last claim)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, closeFn, err := c.openSvc(c.dbPath)
 			if err != nil {
 				return err
 			}
 			defer closeFn()
-			n, perr := strconv.ParseInt(args[0], 10, 64)
-			if perr != nil {
-				return perr
+			n, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			if err := svc.RemoveEdgeClaim(cmd.Context(), graph.EdgeID(n), graph.SourceID(source)); err != nil {
+				return err
+			}
+			return writeOK(c.stdout, map[string]any{"unclaimed": true, "id": n, "source": source})
+		},
+	}
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
+	return cmd
+}
+
+func newEdgeClaimsCmd(c *cliCtx) *cobra.Command {
+	return &cobra.Command{
+		Use:   "claims <edge-id>",
+		Args:  cobra.ExactArgs(1),
+		Short: "List claims on an edge",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			svc, closeFn, err := c.openSvc(c.dbPath)
+			if err != nil {
+				return err
+			}
+			defer closeFn()
+			n, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			cs, err := svc.ListEdgeClaims(cmd.Context(), graph.EdgeID(n))
+			if err != nil {
+				return err
+			}
+			return writeOK(c.stdout, cs)
+		},
+	}
+}
+
+func newEdgeDeleteCmd(c *cliCtx) *cobra.Command {
+	var force bool
+	cmd := &cobra.Command{
+		Use:   "delete <edge-id>",
+		Args:  cobra.ExactArgs(1),
+		Short: "Delete an edge entirely (drops all claims; use --force)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			svc, closeFn, err := c.openSvc(c.dbPath)
+			if err != nil {
+				return err
+			}
+			defer closeFn()
+			if !force {
+				return fmt.Errorf("destructive: pass --force to drop all claims along with this edge")
+			}
+			n, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
 			}
 			if err := svc.DeleteEdge(cmd.Context(), graph.EdgeID(n)); err != nil {
 				return err
@@ -133,4 +189,6 @@ func newEdgeDeleteCmd(c *cliCtx) *cobra.Command {
 			return writeOK(c.stdout, map[string]any{"deleted": true, "id": n})
 		},
 	}
+	cmd.Flags().BoolVar(&force, "force", false, "required: drops the edge and ALL claims")
+	return cmd
 }
