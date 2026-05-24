@@ -18,7 +18,7 @@ func TestListNodesFilterAndLimit(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
 	for _, name := range []string{"pt", "chassis", "body"} {
-		_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: name})
+		_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: name, Source: "manual"})
 		require.NoError(t, err)
 	}
 	all, err := svc.ListNodes(t.Context(), graph.NodeFilter{Domain: "cars"})
@@ -33,11 +33,11 @@ func TestListNodesFilterAndLimit(t *testing.T) {
 func TestChildrenOf(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
-	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt", Source: "manual"})
 	require.NoError(t, err)
-	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine", Parent: "cars:pt"})
+	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "engine", Parent: "cars:pt", Source: "manual"})
 	require.NoError(t, err)
-	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "transmission", Parent: "cars:pt"})
+	_, err = svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "subsystem", Name: "transmission", Parent: "cars:pt", Source: "manual"})
 	require.NoError(t, err)
 
 	kids, err := svc.ChildrenOf(t.Context(), "cars:pt")
@@ -48,10 +48,10 @@ func TestChildrenOf(t *testing.T) {
 func TestUpdateNodeBumpsRevision(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
-	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt", Source: "manual"})
 	require.NoError(t, err)
 
-	updated, err := svc.UpdateNode(t.Context(), "cars:pt", graph.UpdateNodeInput{})
+	updated, err := svc.UpdateNode(t.Context(), "cars:pt", graph.UpdateNodeInput{Source: "manual"})
 	require.NoError(t, err)
 	require.Equal(t, int64(2), updated.Revision)
 }
@@ -59,16 +59,16 @@ func TestUpdateNodeBumpsRevision(t *testing.T) {
 func TestUpdateNodeNotFound(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
-	_, err := svc.UpdateNode(t.Context(), "cars:missing", graph.UpdateNodeInput{})
+	_, err := svc.UpdateNode(t.Context(), "cars:missing", graph.UpdateNodeInput{Source: "manual"})
 	require.ErrorIs(t, err, graph.ErrNodeNotFound)
 }
 
 func TestDeleteNode(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
-	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt", Source: "manual"})
 	require.NoError(t, err)
-	require.NoError(t, svc.DeleteNode(t.Context(), "cars:pt"))
+	require.NoError(t, svc.DeleteNode(t.Context(), "cars:pt", "manual"))
 	_, err = svc.GetNode(t.Context(), "cars:pt")
 	require.ErrorIs(t, err, graph.ErrNodeNotFound)
 }

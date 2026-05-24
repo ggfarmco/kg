@@ -11,9 +11,9 @@ import (
 func seedTwoNodes(t *testing.T, svc *graph.Service) (graph.NodeID, graph.NodeID) {
 	t.Helper()
 	seedCarsDomain(t, svc)
-	a, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
+	a, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt", Source: "manual"})
 	require.NoError(t, err)
-	b, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "chassis"})
+	b, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "chassis", Source: "manual"})
 	require.NoError(t, err)
 	return a.ID, b.ID
 }

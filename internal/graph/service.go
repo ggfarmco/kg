@@ -22,14 +22,32 @@ func NewService(store Store, now Clock) *Service {
 	return &Service{store: store, now: now}
 }
 
+func (s *Service) ensureSource(ctx context.Context, source SourceID) error {
+	now := s.now()
+	return s.store.UpsertSource(ctx, Source{
+		ID:        source,
+		Trust:     100,
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+}
+
 type AddDomainInput struct {
 	ID          string
 	Description string
 	Layers      []string
+	Source      string
 }
 
 func (s *Service) AddDomain(ctx context.Context, in AddDomainInput) (*Domain, error) {
 	id, err := ParseDomainID(in.ID)
+	if err != nil {
+		return nil, err
+	}
+	if in.Source == "" {
+		return nil, ErrSourceRequired
+	}
+	source, err := ParseSourceID(in.Source)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +70,9 @@ func (s *Service) AddDomain(ctx context.Context, in AddDomainInput) (*Domain, er
 		Layers:      append([]string(nil), in.Layers...),
 		Revision:    1,
 		CreatedAt:   s.now(),
+	}
+	if err := s.ensureSource(ctx, source); err != nil {
+		return nil, err
 	}
 	if err := s.store.CreateDomain(ctx, d); err != nil {
 		return nil, err
@@ -77,6 +98,7 @@ type AddNodeInput struct {
 	Name       string
 	ID         string
 	Parent     string
+	Source     string
 	Properties map[string]any
 }
 
@@ -88,6 +110,13 @@ func deriveSlug(name string) (SlugID, error) {
 
 func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 	dID, err := ParseDomainID(in.Domain)
+	if err != nil {
+		return nil, err
+	}
+	if in.Source == "" {
+		return nil, ErrSourceRequired
+	}
+	source, err := ParseSourceID(in.Source)
 	if err != nil {
 		return nil, err
 	}
@@ -138,15 +167,30 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 		return nil, ErrParentLayerMismatch
 	}
 
+	id := NewNodeID(dID, slug)
+	existing, getErr := s.store.GetNode(ctx, id)
+	if getErr != nil && !errors.Is(getErr, ErrNodeNotFound) {
+		return nil, getErr
+	}
+	if existing != nil {
+		if existing.Source != source {
+			return nil, ErrNodeOwnedByDifferentSource
+		}
+		return nil, ErrNodeAlreadyExists
+	}
+
+	if err := s.ensureSource(ctx, source); err != nil {
+		return nil, err
+	}
 	now := s.now()
 	n := Node{
-		ID:         NewNodeID(dID, slug),
+		ID:         id,
 		Domain:     dID,
 		Layer:      in.Layer,
 		Name:       in.Name,
 		ParentID:   parentPtr,
-		Source:     "manual",
-		Properties: map[SourceID]map[string]any{},
+		Source:     source,
+		Properties: nonNilNamespacedProps(source, in.Properties),
 		Revision:   1,
 		CreatedAt:  now,
 		UpdatedAt:  now,
@@ -157,8 +201,22 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 	return &n, nil
 }
 
+func nonNilNamespacedProps(source SourceID, props map[string]any) map[SourceID]map[string]any {
+	out := map[SourceID]map[string]any{}
+	if len(props) == 0 {
+		return out
+	}
+	cp := make(map[string]any, len(props))
+	for k, v := range props {
+		cp[k] = v
+	}
+	out[source] = cp
+	return out
+}
+
 type UpdateNodeInput struct {
-	Name *string
+	Source SourceID
+	Name   *string
 }
 
 func (s *Service) GetNode(ctx context.Context, id NodeID) (*Node, error) {
@@ -174,9 +232,15 @@ func (s *Service) ChildrenOf(ctx context.Context, id NodeID) ([]Node, error) {
 }
 
 func (s *Service) UpdateNode(ctx context.Context, id NodeID, in UpdateNodeInput) (*Node, error) {
+	if in.Source == "" {
+		return nil, ErrSourceRequired
+	}
 	cur, err := s.store.GetNode(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if cur.Source != in.Source {
+		return nil, ErrNodeNotOwner
 	}
 	if in.Name != nil {
 		cur.Name = *in.Name
@@ -188,7 +252,36 @@ func (s *Service) UpdateNode(ctx context.Context, id NodeID, in UpdateNodeInput)
 	return s.store.GetNode(ctx, id)
 }
 
-func (s *Service) DeleteNode(ctx context.Context, id NodeID) error {
+func (s *Service) DeleteNode(ctx context.Context, id NodeID, source SourceID) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	cur, err := s.store.GetNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if cur.Source != source {
+		return ErrNodeNotOwner
+	}
+	incoming, err := s.store.EdgesTo(ctx, id, nil)
+	if err != nil {
+		return err
+	}
+	outgoing, err := s.store.EdgesFrom(ctx, id, nil)
+	if err != nil {
+		return err
+	}
+	for _, e := range append(incoming, outgoing...) {
+		claims, err := s.store.ListEdgeClaims(ctx, e.ID)
+		if err != nil {
+			return err
+		}
+		for _, c := range claims {
+			if c.Source != source {
+				return ErrNodeHasForeignClaims
+			}
+		}
+	}
 	return s.store.DeleteNode(ctx, id)
 }
 

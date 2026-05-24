@@ -34,6 +34,7 @@ func TestAddDomainHappyPath(t *testing.T) {
 		ID:          "cars",
 		Description: "vehicles",
 		Layers:      []string{"system", "subsystem", "part"},
+		Source:      "manual",
 	})
 	require.NoError(t, err)
 	require.Equal(t, graph.DomainID("cars"), d.ID)
@@ -44,21 +45,27 @@ func TestAddDomainHappyPath(t *testing.T) {
 	require.Equal(t, []string{"system", "subsystem", "part"}, got.Layers)
 }
 
+func TestAddDomainRequiresSource(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: []string{"x"}})
+	require.ErrorIs(t, err, graph.ErrSourceRequired)
+}
+
 func TestAddDomainRejectsInvalidID(t *testing.T) {
 	svc, _ := newService(t)
-	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "Cars", Layers: []string{"x"}})
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "Cars", Layers: []string{"x"}, Source: "manual"})
 	require.ErrorIs(t, err, graph.ErrInvalidSlug)
 }
 
 func TestAddDomainRejectsEmptyLayers(t *testing.T) {
 	svc, _ := newService(t)
-	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: nil})
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: nil, Source: "manual"})
 	require.Error(t, err)
 }
 
 func TestAddDomainAlreadyExists(t *testing.T) {
 	svc, _ := newService(t)
-	in := graph.AddDomainInput{ID: "cars", Layers: []string{"system"}}
+	in := graph.AddDomainInput{ID: "cars", Layers: []string{"system"}, Source: "manual"}
 	_, err := svc.AddDomain(t.Context(), in)
 	require.NoError(t, err)
 	_, err = svc.AddDomain(t.Context(), in)
@@ -74,7 +81,7 @@ func TestGetDomainNotFound(t *testing.T) {
 func TestListDomainsSorted(t *testing.T) {
 	svc, _ := newService(t)
 	for _, id := range []string{"physics", "cars", "music"} {
-		_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: id, Layers: []string{"x"}})
+		_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: id, Layers: []string{"x"}, Source: "manual"})
 		require.NoError(t, err)
 	}
 	got, err := svc.ListDomains(t.Context())
@@ -87,15 +94,15 @@ func TestListDomainsSorted(t *testing.T) {
 
 func TestAddDomainRejectsBlankAndDuplicateLayers(t *testing.T) {
 	svc, _ := newService(t)
-	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "x", Layers: []string{"a", "", "c"}})
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "x", Layers: []string{"a", "", "c"}, Source: "manual"})
 	require.Error(t, err)
-	_, err = svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "y", Layers: []string{"a", "b", "a"}})
+	_, err = svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "y", Layers: []string{"a", "b", "a"}, Source: "manual"})
 	require.Error(t, err)
 }
 
 func TestDeleteDomain(t *testing.T) {
 	svc, _ := newService(t)
-	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: []string{"x"}})
+	_, err := svc.AddDomain(t.Context(), graph.AddDomainInput{ID: "cars", Layers: []string{"x"}, Source: "manual"})
 	require.NoError(t, err)
 	require.NoError(t, svc.DeleteDomain(t.Context(), "cars"))
 
