@@ -1,7 +1,7 @@
 ---
 description: Read-only. Answers questions about a specific kg node using its enriched properties + 1-hop neighborhood. No graph mutation. Use when the user wants to understand what a specific function, file, or package does in context.
 argument-hint: <node-id>
-allowed-tools: Read, Bash
+allowed-tools: Read, Bash, AskUserQuestion
 ---
 
 # /kg-explain
@@ -32,7 +32,18 @@ done
 echo "${KG_BIN:-NOT_FOUND}"
 ```
 
-If output is `NOT_FOUND`: dispatch `AskUserQuestion` offering to run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`. Same flow as `/kg-enrich` Pre-check Step 1 — abort if user declines.
+If output is `NOT_FOUND`: read the expected version from the plugin manifest:
+
+```bash
+jq -r '.version' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+```
+
+Dispatch `AskUserQuestion`:
+- **question:** `kg CLI is not installed. Download v<VERSION> from github.com/ggfarmco/kg/releases? (~10MB, verified by SHA-256)`
+- **options:** `Yes, install`, `No, abort`
+
+- On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` via Bash. If exit ≠ 0: surface the bootstrap error and abort. If exit 0: re-execute the locate bash block above (one retry). If `KG_BIN` is still empty, abort with "bootstrap succeeded but kg binary still not found — file an issue at https://github.com/ggfarmco/kg/issues."
+- On `No`: abort with `kg CLI required. Manual install: see https://github.com/ggfarmco/kg#install`.
 
 If output is a path: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
 

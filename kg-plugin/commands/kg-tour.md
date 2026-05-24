@@ -1,7 +1,7 @@
 ---
 description: Re-runs only the tour-builder agent against an already-enriched kg graph. Use when the user wants to regenerate /kg-onboard's source material without re-running file-summarizer or architecture-analyzer. Faster + cheaper than /kg-enrich.
 argument-hint: [--domain <id>] [--source <id>] [--arch-domain <id>]
-allowed-tools: Read, Bash, Task
+allowed-tools: Read, Bash, Task, AskUserQuestion
 ---
 
 # /kg-tour
@@ -32,7 +32,18 @@ done
 echo "${KG_BIN:-NOT_FOUND}"
 ```
 
-If `NOT_FOUND`: offer install via `AskUserQuestion` and run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` on yes. Abort if user declines. (Same flow as `/kg-enrich` Pre-check Step 1.)
+If output is `NOT_FOUND`: read the expected version from the plugin manifest:
+
+```bash
+jq -r '.version' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+```
+
+Dispatch `AskUserQuestion`:
+- **question:** `kg CLI is not installed. Download v<VERSION> from github.com/ggfarmco/kg/releases? (~10MB, verified by SHA-256)`
+- **options:** `Yes, install`, `No, abort`
+
+- On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` via Bash. If exit ≠ 0: surface the bootstrap error and abort. If exit 0: re-execute the locate bash block above (one retry). If `KG_BIN` is still empty, abort with "bootstrap succeeded but kg binary still not found — file an issue at https://github.com/ggfarmco/kg/issues."
+- On `No`: abort with `kg CLI required. Manual install: see https://github.com/ggfarmco/kg#install`.
 
 If found: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
 

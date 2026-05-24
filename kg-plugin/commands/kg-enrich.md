@@ -47,7 +47,7 @@ echo "${KG_BIN:-NOT_FOUND}"
   - **question:** `kg CLI is not installed. Download v<VERSION> from github.com/ggfarmco/kg/releases? (~10MB, verified by SHA-256)`
   - **options:** `Yes, install`, `No, abort`
 
-  - On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` via Bash. If exit ≠ 0: surface the bootstrap error and abort. If exit 0: re-run the locate loop above (one retry) and proceed.
+  - On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` via Bash. If exit ≠ 0: surface the bootstrap error and abort. If exit 0: re-execute the locate bash block from Step 1 above (one retry). If `KG_BIN` is still empty after the retry, abort with "bootstrap succeeded but kg binary still not found at expected locations — file an issue at https://github.com/ggfarmco/kg/issues."
   - On `No`: abort with `kg CLI required. Manual install: see https://github.com/ggfarmco/kg#install`.
 
 - **If output is a path:** prepend its directory to `PATH` so bundled scripts find `kg`:
@@ -62,6 +62,7 @@ Only when `$KG_BIN` is under `${KG_HOME:-$HOME/.config/kg}/bin/`. Skip this chec
 
 ```bash
 INSTALL_ROOT="${KG_HOME:-$HOME/.config/kg}"
+INSTALL_ROOT="${INSTALL_ROOT%/}"
 case "$KG_BIN" in
   "$INSTALL_ROOT/bin/kg")
     EXPECTED="v$(jq -r '.version' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json")"
