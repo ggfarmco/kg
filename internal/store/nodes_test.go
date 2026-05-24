@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,7 +13,12 @@ import (
 
 func seedDomain(t *testing.T, s *store.Store) {
 	t.Helper()
-	require.NoError(t, s.CreateDomain(t.Context(), graph.Domain{
+	ctx := context.Background()
+	require.NoError(t, s.UpsertSource(ctx, graph.Source{
+		ID:        "manual",
+		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
+	}))
+	require.NoError(t, s.CreateDomain(ctx, graph.Domain{
 		ID: "cars", Layers: []string{"system", "subsystem", "part"}, CreatedAt: time.UnixMilli(1),
 	}))
 }
@@ -23,8 +29,8 @@ func TestNodeCRUDAndRevision(t *testing.T) {
 	ctx := t.Context()
 
 	require.NoError(t, s.CreateNode(ctx, graph.Node{
-		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "Powertrain",
-		Properties: map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "Powertrain", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
 	}))
 
 	got, err := s.GetNode(ctx, "cars:pt")
@@ -55,7 +61,10 @@ func TestNodeChangesLog(t *testing.T) {
 	seedDomain(t, s)
 	ctx := t.Context()
 
-	n := graph.Node{ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Properties: map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1)}
+	n := graph.Node{
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
+	}
 	require.NoError(t, s.CreateNode(ctx, n))
 	require.NoError(t, s.UpdateNode(ctx, n))
 	require.NoError(t, s.DeleteNode(ctx, "cars:pt"))
@@ -87,13 +96,13 @@ func TestDeleteNodeWithChildrenIsRestricted(t *testing.T) {
 	ctx := t.Context()
 
 	require.NoError(t, s.CreateNode(ctx, graph.Node{
-		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT",
-		Properties: map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
 	}))
 	pt := graph.NodeID("cars:pt")
 	require.NoError(t, s.CreateNode(ctx, graph.Node{
-		ID: "cars:engine", Domain: "cars", Layer: "subsystem", Name: "Engine", ParentID: &pt,
-		Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+		ID: "cars:engine", Domain: "cars", Layer: "subsystem", Name: "Engine", ParentID: &pt, Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
 	}))
 
 	require.ErrorIs(t, s.DeleteNode(ctx, "cars:pt"), graph.ErrHasDependents)
@@ -108,9 +117,15 @@ func TestChildrenOf(t *testing.T) {
 	seedDomain(t, s)
 	ctx := t.Context()
 
-	require.NoError(t, s.CreateNode(ctx, graph.Node{ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Properties: map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1)}))
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(1), UpdatedAt: time.UnixMilli(1),
+	}))
 	pt := graph.NodeID("cars:pt")
-	require.NoError(t, s.CreateNode(ctx, graph.Node{ID: "cars:engine", Domain: "cars", Layer: "subsystem", Name: "Engine", ParentID: &pt, Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2)}))
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:engine", Domain: "cars", Layer: "subsystem", Name: "Engine", ParentID: &pt, Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+	}))
 
 	kids, err := s.ChildrenOf(ctx, pt)
 	require.NoError(t, err)

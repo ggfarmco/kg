@@ -15,9 +15,19 @@ func TestChangesSeqMonotonicAcrossMutationsAndDeletes(t *testing.T) {
 	s := openTestDB(t)
 	ctx := t.Context()
 	require.NoError(t, s.CreateDomain(ctx, graph.Domain{ID: "cars", Layers: []string{"system"}, CreatedAt: time.UnixMilli(1)}))
-	require.NoError(t, s.CreateNode(ctx, graph.Node{ID: "cars:a", Domain: "cars", Layer: "system", Name: "A", Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2)}))
+	require.NoError(t, s.UpsertSource(ctx, graph.Source{
+		ID:        "manual",
+		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
+	}))
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:a", Domain: "cars", Layer: "system", Name: "A", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+	}))
 	require.NoError(t, s.DeleteNode(ctx, "cars:a"))
-	require.NoError(t, s.CreateNode(ctx, graph.Node{ID: "cars:b", Domain: "cars", Layer: "system", Name: "B", Properties: map[string]any{}, CreatedAt: time.UnixMilli(3), UpdatedAt: time.UnixMilli(3)}))
+	require.NoError(t, s.CreateNode(ctx, graph.Node{
+		ID: "cars:b", Domain: "cars", Layer: "system", Name: "B", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(3), UpdatedAt: time.UnixMilli(3),
+	}))
 
 	rows, err := s.DB().Query(`SELECT seq FROM changes ORDER BY seq`)
 	require.NoError(t, err)
@@ -41,10 +51,17 @@ func TestChangesRolledBackWhenTxFails(t *testing.T) {
 	s := openTestDB(t)
 	ctx := t.Context()
 	require.NoError(t, s.CreateDomain(ctx, graph.Domain{ID: "cars", Layers: []string{"system"}, CreatedAt: time.UnixMilli(1)}))
+	require.NoError(t, s.UpsertSource(ctx, graph.Source{
+		ID:        "manual",
+		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
+	}))
 
 	wantErr := errors.New("boom")
 	_ = s.InTx(ctx, func(ctx context.Context) error {
-		_ = s.CreateNode(ctx, graph.Node{ID: "cars:a", Domain: "cars", Layer: "system", Name: "A", Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2)})
+		_ = s.CreateNode(ctx, graph.Node{
+			ID: "cars:a", Domain: "cars", Layer: "system", Name: "A", Source: "manual",
+			Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+		})
 		return wantErr
 	})
 

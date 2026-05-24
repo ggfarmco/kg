@@ -17,7 +17,7 @@ func newDomainCmdReal(c *cliCtx) *cobra.Command {
 }
 
 func newDomainAddCmd(c *cliCtx) *cobra.Command {
-	var layers, description string
+	var layers, description, source string
 	var ifNotExists, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "add <id>",
@@ -29,7 +29,7 @@ func newDomainAddCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			in := graph.AddDomainInput{ID: args[0], Description: description, Layers: splitCSV(layers)}
+			in := graph.AddDomainInput{ID: args[0], Description: description, Layers: splitCSV(layers), Source: source}
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
@@ -52,6 +52,7 @@ func newDomainAddCmd(c *cliCtx) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&layers, "layers", "", "comma-separated ordered layer names (required)")
 	cmd.Flags().StringVar(&description, "description", "", "free-form description")
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "skip with exit 0 if the domain already exists")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
 	_ = cmd.MarkFlagRequired("layers")

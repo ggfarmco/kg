@@ -60,7 +60,11 @@ func runExtract(ctx context.Context, c *cliCtx, opts *extractOpts) error {
 		return errEnvelopeAlreadyWritten
 	}
 
-	cfg := pluginConfig{Input: opts.input, Domain: opts.domain, ProtocolVersion: 1, Config: map[string]any{}}
+	protocol := 1
+	if chosen.Manifest.Runtime.IsDeclarative() {
+		protocol = 2
+	}
+	cfg := pluginConfig{Input: opts.input, Domain: opts.domain, ProtocolVersion: protocol, Config: map[string]any{}}
 	if opts.language != "" {
 		cfg.Config["language"] = opts.language
 	}
@@ -96,11 +100,22 @@ func runExtract(ctx context.Context, c *cliCtx, opts *extractOpts) error {
 		return err
 	}
 
+	if chosen.Manifest.Runtime.IsDeclarative() {
+		var validated bytes.Buffer
+		if err := validateSnapshot(raw, &validated, chosen.Manifest.SourceID); err != nil {
+			return err
+		}
+		if opts.dbPath == "" {
+			_, err := c.stdout.Write(validated.Bytes())
+			return err
+		}
+		return forwardToKgApply(ctx, c, opts, *chosen.Manifest, validated.Bytes())
+	}
+
 	var validated bytes.Buffer
 	if err := validateStream(raw, &validated); err != nil {
 		return err
 	}
-
 	if opts.dbPath == "" {
 		_, err := c.stdout.Write(validated.Bytes())
 		return err
@@ -115,6 +130,18 @@ func forwardToKgBatch(ctx context.Context, c *cliCtx, opts *extractOpts, stream 
 	cmd.Stderr = c.stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("kg batch: %w", err)
+	}
+	return nil
+}
+
+func forwardToKgApply(ctx context.Context, c *cliCtx, opts *extractOpts, m manifest, snap []byte) error {
+	cmd := exec.CommandContext(ctx, opts.kgBinary, "--db", opts.dbPath, "apply",
+		"--source", m.SourceID, "--domain", opts.domain)
+	cmd.Stdin = bytes.NewReader(snap)
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("kg apply: %w", err)
 	}
 	return nil
 }

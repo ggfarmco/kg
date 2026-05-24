@@ -50,3 +50,7 @@ func (s *Store) inTxOrConn(ctx context.Context, fn func(ctx context.Context) err
 	}
 	return s.InTx(ctx, fn)
 }
+
+func (s *Store) InTxOrConn(ctx context.Context, fn func(ctx context.Context) error) error {
+	return s.inTxOrConn(ctx, fn)
+}

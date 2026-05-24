@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/ggfarmco/kg/snapshot"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +36,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if cfg.ProtocolVersion != 1 {
+			if cfg.ProtocolVersion != 2 {
 				return fmt.Errorf("unsupported protocol_version %d", cfg.ProtocolVersion)
 			}
 			if language == "" {
@@ -108,7 +109,8 @@ func runExtraction(ctx context.Context, stdout io.Writer, stderr io.Writer, lang
 		}
 	}
 	resolver := newImportResolver(cfg.Input, pkgs)
-	return emitOps(stdout, lang.ID(), cfg.Domain, pkgs, resolver, includeExternalImports)
+	snap := buildSnapshot(lang.ID(), cfg.Domain, pkgs, resolver, includeExternalImports)
+	return snapshot.Encode(stdout, snap)
 }
 
 func run(args []string, stdout, stderr io.Writer) int {

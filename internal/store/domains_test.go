@@ -45,10 +45,14 @@ func TestCreateDomainDuplicate(t *testing.T) {
 func TestDeleteDomainWithNodesIsRestricted(t *testing.T) {
 	s := openTestDB(t)
 	ctx := t.Context()
+	require.NoError(t, s.UpsertSource(ctx, graph.Source{
+		ID:        "manual",
+		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
+	}))
 	require.NoError(t, s.CreateDomain(ctx, graph.Domain{ID: "cars", Layers: []string{"system"}, CreatedAt: time.UnixMilli(1)}))
 	require.NoError(t, s.CreateNode(ctx, graph.Node{
-		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT",
-		Properties: map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
+		ID: "cars:pt", Domain: "cars", Layer: "system", Name: "PT", Source: "manual",
+		Properties: map[graph.SourceID]map[string]any{}, CreatedAt: time.UnixMilli(2), UpdatedAt: time.UnixMilli(2),
 	}))
 
 	require.ErrorIs(t, s.DeleteDomain(ctx, "cars"), graph.ErrHasDependents)

@@ -10,13 +10,29 @@ import (
 	"strings"
 )
 
+const addEdgeClaim = `-- name: AddEdgeClaim :exec
+INSERT OR IGNORE INTO edge_claims(edge_id, source, claimed_at) VALUES (?, ?, ?)
+`
+
+type AddEdgeClaimParams struct {
+	EdgeID    int64
+	Source    string
+	ClaimedAt int64
+}
+
+func (q *Queries) AddEdgeClaim(ctx context.Context, arg AddEdgeClaimParams) error {
+	_, err := q.db.ExecContext(ctx, addEdgeClaim, arg.EdgeID, arg.Source, arg.ClaimedAt)
+	return err
+}
+
 const appendChange = `-- name: AppendChange :exec
-INSERT INTO changes(entity, entity_id, op, revision, at) VALUES (?, ?, ?, ?, ?)
+INSERT INTO changes(entity, entity_id, source, op, revision, at) VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type AppendChangeParams struct {
 	Entity   string
 	EntityID string
+	Source   *string
 	Op       string
 	Revision *int64
 	At       int64
@@ -26,6 +42,7 @@ func (q *Queries) AppendChange(ctx context.Context, arg AppendChangeParams) erro
 	_, err := q.db.ExecContext(ctx, appendChange,
 		arg.Entity,
 		arg.EntityID,
+		arg.Source,
 		arg.Op,
 		arg.Revision,
 		arg.At,
@@ -34,7 +51,7 @@ func (q *Queries) AppendChange(ctx context.Context, arg AppendChangeParams) erro
 }
 
 const childrenOf = `-- name: ChildrenOf :many
-SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+SELECT id, domain, layer, name, parent_id, source, properties, revision, created_at, updated_at
 FROM nodes WHERE parent_id = ? ORDER BY id
 `
 
@@ -53,7 +70,7 @@ func (q *Queries) ChildrenOf(ctx context.Context, parentID *string) ([]Node, err
 			&i.Layer,
 			&i.Name,
 			&i.ParentID,
-			&i.Summary,
+			&i.Source,
 			&i.Properties,
 			&i.Revision,
 			&i.CreatedAt,
@@ -70,6 +87,17 @@ func (q *Queries) ChildrenOf(ctx context.Context, parentID *string) ([]Node, err
 		return nil, err
 	}
 	return items, nil
+}
+
+const countEdgeClaims = `-- name: CountEdgeClaims :one
+SELECT COUNT(*) AS n FROM edge_claims WHERE edge_id = ?
+`
+
+func (q *Queries) CountEdgeClaims(ctx context.Context, edgeID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEdgeClaims, edgeID)
+	var n int64
+	err := row.Scan(&n)
+	return n, err
 }
 
 const createDomain = `-- name: CreateDomain :exec
@@ -94,34 +122,8 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 	return err
 }
 
-const createEdge = `-- name: CreateEdge :one
-INSERT INTO edges(source_id, target_id, type, properties, revision, created_at)
-VALUES (?, ?, ?, ?, 1, ?) RETURNING id
-`
-
-type CreateEdgeParams struct {
-	SourceID   string
-	TargetID   string
-	Type       string
-	Properties string
-	CreatedAt  int64
-}
-
-func (q *Queries) CreateEdge(ctx context.Context, arg CreateEdgeParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, createEdge,
-		arg.SourceID,
-		arg.TargetID,
-		arg.Type,
-		arg.Properties,
-		arg.CreatedAt,
-	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
-}
-
 const createNode = `-- name: CreateNode :exec
-INSERT INTO nodes(id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at)
+INSERT INTO nodes(id, domain, layer, name, parent_id, source, properties, revision, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
 `
 
@@ -131,7 +133,7 @@ type CreateNodeParams struct {
 	Layer      string
 	Name       string
 	ParentID   *string
-	Summary    *string
+	Source     string
 	Properties string
 	CreatedAt  int64
 	UpdatedAt  int64
@@ -144,7 +146,7 @@ func (q *Queries) CreateNode(ctx context.Context, arg CreateNodeParams) error {
 		arg.Layer,
 		arg.Name,
 		arg.ParentID,
-		arg.Summary,
+		arg.Source,
 		arg.Properties,
 		arg.CreatedAt,
 		arg.UpdatedAt,
@@ -177,6 +179,42 @@ DELETE FROM nodes WHERE id = ?
 func (q *Queries) DeleteNode(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteNode, id)
 	return err
+}
+
+const deleteSource = `-- name: DeleteSource :exec
+DELETE FROM sources WHERE id = ?
+`
+
+func (q *Queries) DeleteSource(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteSource, id)
+	return err
+}
+
+const edgeIDsClaimedBy = `-- name: EdgeIDsClaimedBy :many
+SELECT edge_id FROM edge_claims WHERE source = ? ORDER BY edge_id
+`
+
+func (q *Queries) EdgeIDsClaimedBy(ctx context.Context, source string) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, edgeIDsClaimedBy, source)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var edge_id int64
+		if err := rows.Scan(&edge_id); err != nil {
+			return nil, err
+		}
+		items = append(items, edge_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const edgesFromAll = `-- name: EdgesFromAll :many
@@ -392,7 +430,7 @@ func (q *Queries) GetEdge(ctx context.Context, id int64) (Edge, error) {
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+SELECT id, domain, layer, name, parent_id, source, properties, revision, created_at, updated_at
 FROM nodes WHERE id = ?
 `
 
@@ -405,7 +443,7 @@ func (q *Queries) GetNode(ctx context.Context, id string) (Node, error) {
 		&i.Layer,
 		&i.Name,
 		&i.ParentID,
-		&i.Summary,
+		&i.Source,
 		&i.Properties,
 		&i.Revision,
 		&i.CreatedAt,
@@ -423,6 +461,22 @@ func (q *Queries) GetNodeRevision(ctx context.Context, id string) (int64, error)
 	var revision int64
 	err := row.Scan(&revision)
 	return revision, err
+}
+
+const getSource = `-- name: GetSource :one
+SELECT id, description, first_seen, last_seen FROM sources WHERE id = ?
+`
+
+func (q *Queries) GetSource(ctx context.Context, id string) (Source, error) {
+	row := q.db.QueryRowContext(ctx, getSource, id)
+	var i Source
+	err := row.Scan(
+		&i.ID,
+		&i.Description,
+		&i.FirstSeen,
+		&i.LastSeen,
+	)
+	return i, err
 }
 
 const listDomains = `-- name: ListDomains :many
@@ -458,23 +512,57 @@ func (q *Queries) ListDomains(ctx context.Context) ([]Domain, error) {
 	return items, nil
 }
 
+const listEdgeClaims = `-- name: ListEdgeClaims :many
+SELECT edge_id, source, claimed_at FROM edge_claims WHERE edge_id = ? ORDER BY source
+`
+
+func (q *Queries) ListEdgeClaims(ctx context.Context, edgeID int64) ([]EdgeClaim, error) {
+	rows, err := q.db.QueryContext(ctx, listEdgeClaims, edgeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EdgeClaim{}
+	for rows.Next() {
+		var i EdgeClaim
+		if err := rows.Scan(&i.EdgeID, &i.Source, &i.ClaimedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNodes = `-- name: ListNodes :many
-SELECT id, domain, layer, name, parent_id, summary, properties, revision, created_at, updated_at
+SELECT id, domain, layer, name, parent_id, source, properties, revision, created_at, updated_at
 FROM nodes
 WHERE (?1 = '' OR domain = ?1)
   AND (?2  = '' OR layer  = ?2)
+  AND (?3 = '' OR source = ?3)
 ORDER BY id
-LIMIT CASE WHEN ?3 = 0 THEN -1 ELSE ?3 END
+LIMIT CASE WHEN ?4 = 0 THEN -1 ELSE ?4 END
 `
 
 type ListNodesParams struct {
 	DomainFilter interface{}
 	LayerFilter  interface{}
+	SourceFilter interface{}
 	Lim          interface{}
 }
 
 func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]Node, error) {
-	rows, err := q.db.QueryContext(ctx, listNodes, arg.DomainFilter, arg.LayerFilter, arg.Lim)
+	rows, err := q.db.QueryContext(ctx, listNodes,
+		arg.DomainFilter,
+		arg.LayerFilter,
+		arg.SourceFilter,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -488,7 +576,7 @@ func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]Node, e
 			&i.Layer,
 			&i.Name,
 			&i.ParentID,
-			&i.Summary,
+			&i.Source,
 			&i.Properties,
 			&i.Revision,
 			&i.CreatedAt,
@@ -507,14 +595,117 @@ func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]Node, e
 	return items, nil
 }
 
+const listSources = `-- name: ListSources :many
+SELECT id, description, first_seen, last_seen FROM sources ORDER BY id
+`
+
+func (q *Queries) ListSources(ctx context.Context) ([]Source, error) {
+	rows, err := q.db.QueryContext(ctx, listSources)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Source{}
+	for rows.Next() {
+		var i Source
+		if err := rows.Scan(
+			&i.ID,
+			&i.Description,
+			&i.FirstSeen,
+			&i.LastSeen,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nodesOwnedBy = `-- name: NodesOwnedBy :many
+SELECT id, domain, layer, name, parent_id, source, properties, revision, created_at, updated_at
+FROM nodes WHERE domain = ? AND source = ? ORDER BY id
+`
+
+type NodesOwnedByParams struct {
+	Domain string
+	Source string
+}
+
+func (q *Queries) NodesOwnedBy(ctx context.Context, arg NodesOwnedByParams) ([]Node, error) {
+	rows, err := q.db.QueryContext(ctx, nodesOwnedBy, arg.Domain, arg.Source)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Node{}
+	for rows.Next() {
+		var i Node
+		if err := rows.Scan(
+			&i.ID,
+			&i.Domain,
+			&i.Layer,
+			&i.Name,
+			&i.ParentID,
+			&i.Source,
+			&i.Properties,
+			&i.Revision,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeEdgeClaim = `-- name: RemoveEdgeClaim :exec
+DELETE FROM edge_claims WHERE edge_id = ? AND source = ?
+`
+
+type RemoveEdgeClaimParams struct {
+	EdgeID int64
+	Source string
+}
+
+func (q *Queries) RemoveEdgeClaim(ctx context.Context, arg RemoveEdgeClaimParams) error {
+	_, err := q.db.ExecContext(ctx, removeEdgeClaim, arg.EdgeID, arg.Source)
+	return err
+}
+
+const updateEdgeProperties = `-- name: UpdateEdgeProperties :exec
+UPDATE edges SET properties = ?, revision = revision + 1 WHERE id = ?
+`
+
+type UpdateEdgePropertiesParams struct {
+	Properties string
+	ID         int64
+}
+
+func (q *Queries) UpdateEdgeProperties(ctx context.Context, arg UpdateEdgePropertiesParams) error {
+	_, err := q.db.ExecContext(ctx, updateEdgeProperties, arg.Properties, arg.ID)
+	return err
+}
+
 const updateNode = `-- name: UpdateNode :exec
-UPDATE nodes SET name = ?, summary = ?, properties = ?, revision = revision + 1, updated_at = ?
+UPDATE nodes SET name = ?, properties = ?, revision = revision + 1, updated_at = ?
 WHERE id = ?
 `
 
 type UpdateNodeParams struct {
 	Name       string
-	Summary    *string
 	Properties string
 	UpdatedAt  int64
 	ID         string
@@ -523,10 +714,74 @@ type UpdateNodeParams struct {
 func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) error {
 	_, err := q.db.ExecContext(ctx, updateNode,
 		arg.Name,
-		arg.Summary,
 		arg.Properties,
 		arg.UpdatedAt,
 		arg.ID,
+	)
+	return err
+}
+
+const updateSource = `-- name: UpdateSource :exec
+UPDATE sources SET description = ? WHERE id = ?
+`
+
+type UpdateSourceParams struct {
+	Description *string
+	ID          string
+}
+
+func (q *Queries) UpdateSource(ctx context.Context, arg UpdateSourceParams) error {
+	_, err := q.db.ExecContext(ctx, updateSource, arg.Description, arg.ID)
+	return err
+}
+
+const upsertEdge = `-- name: UpsertEdge :one
+INSERT INTO edges(source_id, target_id, type, properties, revision, created_at)
+VALUES (?, ?, ?, ?, 1, ?)
+ON CONFLICT(source_id, target_id, type) DO UPDATE SET source_id = excluded.source_id
+RETURNING id
+`
+
+type UpsertEdgeParams struct {
+	SourceID   string
+	TargetID   string
+	Type       string
+	Properties string
+	CreatedAt  int64
+}
+
+func (q *Queries) UpsertEdge(ctx context.Context, arg UpsertEdgeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, upsertEdge,
+		arg.SourceID,
+		arg.TargetID,
+		arg.Type,
+		arg.Properties,
+		arg.CreatedAt,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const upsertSource = `-- name: UpsertSource :exec
+INSERT INTO sources(id, description, first_seen, last_seen)
+VALUES (?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen
+`
+
+type UpsertSourceParams struct {
+	ID          string
+	Description *string
+	FirstSeen   int64
+	LastSeen    int64
+}
+
+func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSource,
+		arg.ID,
+		arg.Description,
+		arg.FirstSeen,
+		arg.LastSeen,
 	)
 	return err
 }

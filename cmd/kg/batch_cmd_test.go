@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,9 +45,9 @@ func TestBatchHappyPath(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
 		`{"op":"meta","args":{"plugin":"unit","total_ops":3}}`,
-		`{"op":"domain.add","args":{"id":"a","layers":["l1","l2"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"root"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l2","name":"child","parent":"a:root"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1","l2"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"root","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l2","name":"child","parent":"a:root","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	stdout, stderr, exit := execBatchCmd(t, db, stream)
@@ -68,9 +69,9 @@ func TestBatchHappyPath(t *testing.T) {
 func TestBatchAtomicityRollsBackOnFailure(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"ok"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"ok","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	_, _, exit := execBatchCmd(t, db, stream)
@@ -84,11 +85,11 @@ func TestBatchAtomicityRollsBackOnFailure(t *testing.T) {
 
 func TestBatchIfNotExistsCountsSkipped(t *testing.T) {
 	db := freshDB(t)
-	stream1 := `{"op":"domain.add","args":{"id":"a","layers":["l1"]}}` + "\n"
+	stream1 := `{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}` + "\n"
 	_, _, exit := execBatchCmd(t, db, stream1)
 	require.Equal(t, 0, exit)
 
-	stream2 := `{"op":"domain.add","args":{"id":"a","layers":["l1"],"if_not_exists":true}}` + "\n"
+	stream2 := `{"op":"domain.add","args":{"id":"a","layers":["l1"],"if_not_exists":true,"source":"cli"}}` + "\n"
 	stdout, _, exit := execBatchCmd(t, db, stream2)
 	require.Equal(t, 0, exit)
 	require.Contains(t, stdout, `"applied": 0`)
@@ -98,7 +99,7 @@ func TestBatchIfNotExistsCountsSkipped(t *testing.T) {
 func TestBatchInvalidJSONShortCircuits(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
 		`not json`,
 	}, "\n") + "\n"
 
@@ -115,10 +116,10 @@ func TestBatchInvalidJSONShortCircuits(t *testing.T) {
 func TestBatchContinueOnErrorReportsFailures(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"alsoGood"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"alsoGood","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	stdout, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
@@ -146,7 +147,7 @@ func TestBatchContinueOnErrorReportsFailures(t *testing.T) {
 
 func TestBatchContinueOnErrorAllSuccessReturnsOK(t *testing.T) {
 	db := freshDB(t)
-	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"]}}` + "\n"
+	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}` + "\n"
 	stdout, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
 	require.Equal(t, 0, exit)
 	require.Contains(t, stdout, `"ok": true`)
@@ -162,9 +163,9 @@ func TestBatchChunkAndContinueMutuallyExclusive(t *testing.T) {
 func TestBatchContinueOnErrorIsolatesFailingOp(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"good","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	_, _, exit := execBatchCmd(t, db, stream, "--continue-on-error")
@@ -177,7 +178,7 @@ func TestBatchContinueOnErrorIsolatesFailingOp(t *testing.T) {
 
 func TestBatchDryRunDoesNotCommit(t *testing.T) {
 	db := freshDB(t)
-	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"]}}` + "\n"
+	stream := `{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}` + "\n"
 	stdout, _, exit := execBatchCmd(t, db, stream, "--dry-run")
 	require.Equal(t, 0, exit)
 	require.Contains(t, stdout, `"dry_run": true`)
@@ -192,8 +193,8 @@ func TestBatchProgressEmitsToStderr(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
 		`{"op":"meta","args":{"total_ops":2}}`,
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"x"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"x","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	_, stderr, exit := execBatchCmd(t, db, stream, "--progress")
@@ -205,10 +206,10 @@ func TestBatchProgressEmitsToStderr(t *testing.T) {
 func TestBatchChunkSizeCommitsEarlierChunks(t *testing.T) {
 	db := freshDB(t)
 	stream := strings.Join([]string{
-		`{"op":"domain.add","args":{"id":"a","layers":["l1"]}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"a"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"b"}}`,
-		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!"}}`,
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"a","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"b","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"!!!","source":"cli"}}`,
 	}, "\n") + "\n"
 
 	_, _, exit := execBatchCmd(t, db, stream, "--chunk-size", "2")
@@ -218,4 +219,35 @@ func TestBatchChunkSizeCommitsEarlierChunks(t *testing.T) {
 	require.Equal(t, 0, run([]string{"--db", db, "node", "list", "--domain", "a"}, &out, &errOut))
 	require.Contains(t, out.String(), `"a:a"`)
 	require.NotContains(t, out.String(), `"a:b"`)
+}
+
+func TestBatchEdgeUnclaimGCs(t *testing.T) {
+	db := freshDB(t)
+	stream := strings.Join([]string{
+		`{"op":"domain.add","args":{"id":"a","layers":["l1"],"source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"x","source":"cli"}}`,
+		`{"op":"node.add","args":{"domain":"a","layer":"l1","name":"y","source":"cli"}}`,
+		`{"op":"edge.add","args":{"src":"a:x","target":"a:y","type":"imports","source":"cli"}}`,
+	}, "\n") + "\n"
+	_, _, exit := execBatchCmd(t, db, stream)
+	require.Equal(t, 0, exit)
+
+	var listOut bytes.Buffer
+	require.Equal(t, 0, run([]string{"--db", db, "edge", "list-from", "a:x"}, &listOut, new(bytes.Buffer)))
+	require.Contains(t, listOut.String(), `"type": "imports"`)
+
+	var raw struct {
+		Data []struct{ ID int64 `json:"id"` } `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(listOut.Bytes(), &raw))
+	require.NotEmpty(t, raw.Data)
+	id := raw.Data[0].ID
+
+	unclaim := fmt.Sprintf(`{"op":"edge.unclaim","args":{"id":%d,"source":"cli"}}`+"\n", id)
+	_, _, exit = execBatchCmd(t, db, unclaim)
+	require.Equal(t, 0, exit)
+
+	listOut.Reset()
+	require.Equal(t, 0, run([]string{"--db", db, "edge", "list-from", "a:x"}, &listOut, new(bytes.Buffer)))
+	require.Contains(t, listOut.String(), `"data": []`)
 }

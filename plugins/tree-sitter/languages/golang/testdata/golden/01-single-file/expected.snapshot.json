@@ -1,0 +1,65 @@
+{
+  "domain": "g",
+  "domain_spec": {
+    "description": "Extracted by tree-sitter (go)",
+    "id": "g",
+    "layers": [
+      "package",
+      "file",
+      "decl"
+    ]
+  },
+  "edges": [
+    {
+      "src": "g:input/main::main",
+      "target": "g:input/main::hello",
+      "type": "calls"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "g:input",
+      "layer": "package",
+      "name": "input"
+    },
+    {
+      "id": "g:input/main",
+      "layer": "file",
+      "name": "main.go",
+      "parent": "g:input"
+    },
+    {
+      "id": "g:input/main::hello",
+      "layer": "decl",
+      "name": "hello",
+      "parent": "g:input/main",
+      "properties": {
+        "exported": true,
+        "kind": "function",
+        "line_end": 7,
+        "line_start": 5,
+        "name": "Hello",
+        "params": null,
+        "returns": "string"
+      }
+    },
+    {
+      "id": "g:input/main::main",
+      "layer": "decl",
+      "name": "main",
+      "parent": "g:input/main",
+      "properties": {
+        "exported": false,
+        "kind": "function",
+        "line_end": 11,
+        "line_start": 9,
+        "name": "main",
+        "params": null,
+        "returns": ""
+      }
+    }
+  ],
+  "protocol_version": 2,
+  "scope": "domain-source",
+  "source": "tree-sitter:0.2.0"
+}

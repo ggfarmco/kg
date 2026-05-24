@@ -8,6 +8,7 @@ type Change struct {
 	Seq      int64
 	Entity   string
 	EntityID string
+	Source   *string
 	Op       string
 	Revision *int64
 	At       int64
@@ -31,15 +32,28 @@ type Edge struct {
 	CreatedAt  int64
 }
 
+type EdgeClaim struct {
+	EdgeID    int64
+	Source    string
+	ClaimedAt int64
+}
+
 type Node struct {
 	ID         string
 	Domain     string
 	Layer      string
 	Name       string
 	ParentID   *string
-	Summary    *string
+	Source     string
 	Properties string
 	Revision   int64
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type Source struct {
+	ID          string
+	Description *string
+	FirstSeen   int64
+	LastSeen    int64
 }

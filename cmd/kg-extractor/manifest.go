@@ -11,9 +11,11 @@ import (
 type runtimeKind string
 
 const (
-	runtimeNative  runtimeKind = "native"
-	runtimeCommand runtimeKind = "command"
-	runtimeWASM    runtimeKind = "wasm"
+	runtimeNative              runtimeKind = "native"
+	runtimeCommand             runtimeKind = "command"
+	runtimeWASM                runtimeKind = "wasm"
+	runtimeDeclarativeNative   runtimeKind = "declarative-native"
+	runtimeDeclarativeCommand  runtimeKind = "declarative-command"
 )
 
 type manifest struct {
@@ -26,6 +28,8 @@ type manifest struct {
 	Module             string      `json:"module,omitempty"`
 	SupportedLayers    []string    `json:"supported_layers,omitempty"`
 	SupportedLanguages []string    `json:"supported_languages,omitempty"`
+	SupportedScopes    []string    `json:"supported_scopes,omitempty"`
+	SourceID           string      `json:"source_id,omitempty"`
 }
 
 var pluginNameRE = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -49,13 +53,13 @@ func parseManifest(path string) (*manifest, error) {
 		return nil, errors.New("manifest description is required")
 	}
 	switch m.Runtime {
-	case runtimeNative:
+	case runtimeNative, runtimeDeclarativeNative:
 		if m.Executable == "" {
-			return nil, errors.New("native runtime requires executable")
+			return nil, fmt.Errorf("%s runtime requires executable", m.Runtime)
 		}
-	case runtimeCommand:
+	case runtimeCommand, runtimeDeclarativeCommand:
 		if len(m.Command) == 0 {
-			return nil, errors.New("command runtime requires command[]")
+			return nil, fmt.Errorf("%s runtime requires command[]", m.Runtime)
 		}
 	case runtimeWASM:
 		if m.Module == "" {
@@ -64,5 +68,15 @@ func parseManifest(path string) (*manifest, error) {
 	default:
 		return nil, fmt.Errorf("unknown runtime %q", m.Runtime)
 	}
+	if m.SourceID == "" {
+		m.SourceID = m.Name + ":" + m.Version
+	}
+	if len(m.SupportedScopes) == 0 {
+		m.SupportedScopes = []string{"domain-source"}
+	}
 	return &m, nil
+}
+
+func (r runtimeKind) IsDeclarative() bool {
+	return r == runtimeDeclarativeNative || r == runtimeDeclarativeCommand
 }
