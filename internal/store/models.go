@@ -54,7 +54,6 @@ type Node struct {
 type Source struct {
 	ID          string
 	Description *string
-	Trust       int64
 	FirstSeen   int64
 	LastSeen    int64
 }

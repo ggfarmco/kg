@@ -47,7 +47,6 @@ func openService(dbPath string) (*graph.Service, func(), error) {
 	for _, id := range []graph.SourceID{"manual", "cli"} {
 		if err := st.UpsertSource(context.Background(), graph.Source{
 			ID:        id,
-			Trust:     100,
 			FirstSeen: time.UnixMilli(0),
 			LastSeen:  time.UnixMilli(0),
 		}); err != nil {

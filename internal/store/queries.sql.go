@@ -464,7 +464,7 @@ func (q *Queries) GetNodeRevision(ctx context.Context, id string) (int64, error)
 }
 
 const getSource = `-- name: GetSource :one
-SELECT id, description, trust, first_seen, last_seen FROM sources WHERE id = ?
+SELECT id, description, first_seen, last_seen FROM sources WHERE id = ?
 `
 
 func (q *Queries) GetSource(ctx context.Context, id string) (Source, error) {
@@ -473,7 +473,6 @@ func (q *Queries) GetSource(ctx context.Context, id string) (Source, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.Description,
-		&i.Trust,
 		&i.FirstSeen,
 		&i.LastSeen,
 	)
@@ -597,7 +596,7 @@ func (q *Queries) ListNodes(ctx context.Context, arg ListNodesParams) ([]Node, e
 }
 
 const listSources = `-- name: ListSources :many
-SELECT id, description, trust, first_seen, last_seen FROM sources ORDER BY id
+SELECT id, description, first_seen, last_seen FROM sources ORDER BY id
 `
 
 func (q *Queries) ListSources(ctx context.Context) ([]Source, error) {
@@ -612,7 +611,6 @@ func (q *Queries) ListSources(ctx context.Context) ([]Source, error) {
 		if err := rows.Scan(
 			&i.ID,
 			&i.Description,
-			&i.Trust,
 			&i.FirstSeen,
 			&i.LastSeen,
 		); err != nil {
@@ -724,17 +722,16 @@ func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) error {
 }
 
 const updateSource = `-- name: UpdateSource :exec
-UPDATE sources SET description = ?, trust = ? WHERE id = ?
+UPDATE sources SET description = ? WHERE id = ?
 `
 
 type UpdateSourceParams struct {
 	Description *string
-	Trust       int64
 	ID          string
 }
 
 func (q *Queries) UpdateSource(ctx context.Context, arg UpdateSourceParams) error {
-	_, err := q.db.ExecContext(ctx, updateSource, arg.Description, arg.Trust, arg.ID)
+	_, err := q.db.ExecContext(ctx, updateSource, arg.Description, arg.ID)
 	return err
 }
 
@@ -767,15 +764,14 @@ func (q *Queries) UpsertEdge(ctx context.Context, arg UpsertEdgeParams) (int64, 
 }
 
 const upsertSource = `-- name: UpsertSource :exec
-INSERT INTO sources(id, description, trust, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO sources(id, description, first_seen, last_seen)
+VALUES (?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen
 `
 
 type UpsertSourceParams struct {
 	ID          string
 	Description *string
-	Trust       int64
 	FirstSeen   int64
 	LastSeen    int64
 }
@@ -784,7 +780,6 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) erro
 	_, err := q.db.ExecContext(ctx, upsertSource,
 		arg.ID,
 		arg.Description,
-		arg.Trust,
 		arg.FirstSeen,
 		arg.LastSeen,
 	)

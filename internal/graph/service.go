@@ -28,7 +28,6 @@ func (s *Service) ensureSource(ctx context.Context, source SourceID) error {
 	now := s.now()
 	return s.store.UpsertSource(ctx, Source{
 		ID:        source,
-		Trust:     100,
 		FirstSeen: now,
 		LastSeen:  now,
 	})
@@ -474,14 +473,14 @@ func (s *Service) GetSource(ctx context.Context, id SourceID) (*Source, error) {
 	return s.store.GetSource(ctx, id)
 }
 
-func (s *Service) RegisterSource(ctx context.Context, id SourceID, description string, trust int) (*Source, error) {
+func (s *Service) RegisterSource(ctx context.Context, id SourceID, description string) (*Source, error) {
 	if _, err := s.store.GetSource(ctx, id); err == nil {
 		return nil, ErrSourceAlreadyExists
 	} else if !errors.Is(err, ErrSourceNotFound) {
 		return nil, err
 	}
 	now := s.now()
-	src := Source{ID: id, Description: description, Trust: trust, FirstSeen: now, LastSeen: now}
+	src := Source{ID: id, Description: description, FirstSeen: now, LastSeen: now}
 	if err := s.store.UpsertSource(ctx, src); err != nil {
 		return nil, err
 	}

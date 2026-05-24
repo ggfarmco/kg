@@ -1,16 +1,16 @@
 -- name: UpsertSource :exec
-INSERT INTO sources(id, description, trust, first_seen, last_seen)
-VALUES (?, ?, ?, ?, ?)
+INSERT INTO sources(id, description, first_seen, last_seen)
+VALUES (?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET last_seen = excluded.last_seen;
 
 -- name: GetSource :one
-SELECT id, description, trust, first_seen, last_seen FROM sources WHERE id = ?;
+SELECT id, description, first_seen, last_seen FROM sources WHERE id = ?;
 
 -- name: ListSources :many
-SELECT id, description, trust, first_seen, last_seen FROM sources ORDER BY id;
+SELECT id, description, first_seen, last_seen FROM sources ORDER BY id;
 
 -- name: UpdateSource :exec
-UPDATE sources SET description = ?, trust = ? WHERE id = ?;
+UPDATE sources SET description = ? WHERE id = ?;
 
 -- name: DeleteSource :exec
 DELETE FROM sources WHERE id = ?;

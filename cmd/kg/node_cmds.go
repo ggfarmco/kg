@@ -95,17 +95,13 @@ func newNodeGetCmd(c *cliCtx) *cobra.Command {
 			case source != "":
 				return writeOK(c.stdout, nodeFlattenedView(*n, graph.SourceID(source)))
 			case merged:
-				ss, err := svc.ListSources(cmd.Context())
-				if err != nil {
-					return err
-				}
-				return writeOK(c.stdout, nodeMergedView(*n, ss))
+				return writeOK(c.stdout, nodeMergedView(*n))
 			}
 			return writeOK(c.stdout, n)
 		},
 	}
 	cmd.Flags().StringVar(&source, "source", "", "show only this source's namespace (flattened)")
-	cmd.Flags().BoolVar(&merged, "merged", false, "trust-ranked union of all namespaces with _property_sources attribution")
+	cmd.Flags().BoolVar(&merged, "merged", false, "union of all namespaces with _property_sources attribution")
 	return cmd
 }
 
@@ -269,23 +265,17 @@ func nodeFlattenedView(n graph.Node, source graph.SourceID) map[string]any {
 	return out
 }
 
-func nodeMergedView(n graph.Node, sources []graph.Source) map[string]any {
-	trustOf := map[graph.SourceID]int{}
-	for _, s := range sources {
-		trustOf[s.ID] = s.Trust
-	}
+func nodeMergedView(n graph.Node) map[string]any {
 	type contrib struct {
 		source graph.SourceID
-		trust  int
 		value  any
 	}
 	keys := map[string]contrib{}
 	for src, m := range n.Properties {
-		t := trustOf[src]
 		for k, v := range m {
 			c, ok := keys[k]
-			if !ok || t > c.trust || (t == c.trust && src < c.source) {
-				keys[k] = contrib{source: src, trust: t, value: v}
+			if !ok || src < c.source {
+				keys[k] = contrib{source: src, value: v}
 			}
 		}
 	}

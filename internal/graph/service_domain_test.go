@@ -18,7 +18,6 @@ func newService(t *testing.T) (*graph.Service, *testutil.FakeStore) {
 	now := clock()
 	err := fs.UpsertSource(ctx, graph.Source{
 		ID:        "manual",
-		Trust:     100,
 		FirstSeen: now,
 		LastSeen:  now,
 	})

@@ -10,7 +10,6 @@ type SourceID string
 type Source struct {
 	ID          SourceID  `json:"id"`
 	Description string    `json:"description"`
-	Trust       int       `json:"trust"`
 	FirstSeen   time.Time `json:"first_seen"`
 	LastSeen    time.Time `json:"last_seen"`
 }

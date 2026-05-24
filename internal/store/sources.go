@@ -17,7 +17,6 @@ func (s *Store) UpsertSource(ctx context.Context, src graph.Source) error {
 		return q.UpsertSource(ctx, UpsertSourceParams{
 			ID:          string(src.ID),
 			Description: nullStringPtr(src.Description),
-			Trust:       int64(src.Trust),
 			FirstSeen:   src.FirstSeen.UnixMilli(),
 			LastSeen:    src.LastSeen.UnixMilli(),
 		})
@@ -33,7 +32,7 @@ func (s *Store) GetSource(ctx context.Context, id graph.SourceID) (*graph.Source
 	if err != nil {
 		return nil, fmt.Errorf("sqlite: get source: %w", err)
 	}
-	return decodeSource(row.ID, row.Description, row.Trust, row.FirstSeen, row.LastSeen), nil
+	return decodeSource(row.ID, row.Description, row.FirstSeen, row.LastSeen), nil
 }
 
 func (s *Store) ListSources(ctx context.Context) ([]graph.Source, error) {
@@ -44,7 +43,7 @@ func (s *Store) ListSources(ctx context.Context) ([]graph.Source, error) {
 	}
 	out := make([]graph.Source, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, *decodeSource(r.ID, r.Description, r.Trust, r.FirstSeen, r.LastSeen))
+		out = append(out, *decodeSource(r.ID, r.Description, r.FirstSeen, r.LastSeen))
 	}
 	return out, nil
 }
@@ -54,7 +53,6 @@ func (s *Store) UpdateSource(ctx context.Context, src graph.Source) error {
 	return q.UpdateSource(ctx, UpdateSourceParams{
 		ID:          string(src.ID),
 		Description: nullStringPtr(src.Description),
-		Trust:       int64(src.Trust),
 	})
 }
 
@@ -69,13 +67,14 @@ func (s *Store) DeleteSource(ctx context.Context, id graph.SourceID) error {
 	return nil
 }
 
-func decodeSource(id string, desc *string, trust, firstSeen, lastSeen int64) *graph.Source {
+func decodeSource(id string, desc *string, firstSeen, lastSeen int64) *graph.Source {
 	d := ""
 	if desc != nil {
 		d = *desc
 	}
 	return &graph.Source{
-		ID: graph.SourceID(id), Description: d, Trust: int(trust),
+		ID:        graph.SourceID(id),
+		Description: d,
 		FirstSeen: time.UnixMilli(firstSeen),
 		LastSeen:  time.UnixMilli(lastSeen),
 	}

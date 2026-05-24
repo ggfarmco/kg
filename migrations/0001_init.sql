@@ -3,7 +3,6 @@
 CREATE TABLE sources (
   id          TEXT PRIMARY KEY,
   description TEXT,
-  trust       INTEGER NOT NULL DEFAULT 100,
   first_seen  INTEGER NOT NULL,
   last_seen   INTEGER NOT NULL
 );

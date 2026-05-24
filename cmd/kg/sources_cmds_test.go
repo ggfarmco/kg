@@ -15,7 +15,7 @@ func TestSourcesRegisterListShow(t *testing.T) {
 	{
 		var out, errOut bytes.Buffer
 		exit := run([]string{"--db", db, "sources", "register",
-			"--id", "tree-sitter:0.1.0", "--description", "ts", "--trust", "100"}, &out, &errOut)
+			"--id", "tree-sitter:0.1.0", "--description", "ts"}, &out, &errOut)
 		require.Equal(t, 0, exit, errOut.String())
 	}
 
@@ -54,15 +54,14 @@ func TestSourcesRegisterIfNotExistsSkipsDuplicate(t *testing.T) {
 	require.Contains(t, out.String(), `"skipped": true`)
 }
 
-func TestSourcesUpdateChangesDescriptionAndTrust(t *testing.T) {
+func TestSourcesUpdateChangesDescription(t *testing.T) {
 	db := freshDB(t)
 	require.Equal(t, 0, run([]string{"--db", db, "sources", "register", "--id", "x"}, new(bytes.Buffer), new(bytes.Buffer)))
-	require.Equal(t, 0, run([]string{"--db", db, "sources", "update", "x", "--description", "Updated", "--trust", "50"}, new(bytes.Buffer), new(bytes.Buffer)))
+	require.Equal(t, 0, run([]string{"--db", db, "sources", "update", "x", "--description", "Updated"}, new(bytes.Buffer), new(bytes.Buffer)))
 
 	var out bytes.Buffer
 	require.Equal(t, 0, run([]string{"--db", db, "sources", "show", "x"}, &out, new(bytes.Buffer)))
 	require.Contains(t, out.String(), `"description": "Updated"`)
-	require.Contains(t, out.String(), `"trust": 50`)
 }
 
 func TestSourcesDeleteFailsWithDependents(t *testing.T) {

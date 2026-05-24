@@ -58,7 +58,6 @@ func newSourcesShowCmd(c *cliCtx) *cobra.Command {
 
 func newSourcesRegisterCmd(c *cliCtx) *cobra.Command {
 	var id, description string
-	var trust int
 	var ifNotExists bool
 	cmd := &cobra.Command{
 		Use:   "register",
@@ -69,7 +68,7 @@ func newSourcesRegisterCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			s, err := svc.RegisterSource(cmd.Context(), graph.SourceID(id), description, trust)
+			s, err := svc.RegisterSource(cmd.Context(), graph.SourceID(id), description)
 			if err != nil {
 				if ifNotExists && errors.Is(err, graph.ErrSourceAlreadyExists) {
 					return writeOK(c.stdout, map[string]any{"skipped": true, "reason": "already_exists"})
@@ -81,7 +80,6 @@ func newSourcesRegisterCmd(c *cliCtx) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&id, "id", "", "source id (required)")
 	cmd.Flags().StringVar(&description, "description", "", "free-form description")
-	cmd.Flags().IntVar(&trust, "trust", 100, "trust score (0-100)")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "skip if the source already exists")
 	_ = cmd.MarkFlagRequired("id")
 	return cmd
@@ -89,12 +87,10 @@ func newSourcesRegisterCmd(c *cliCtx) *cobra.Command {
 
 func newSourcesUpdateCmd(c *cliCtx) *cobra.Command {
 	var description string
-	var trust int
-	var trustSet bool
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Args:  cobra.ExactArgs(1),
-		Short: "Update description and/or trust",
+		Short: "Update source description",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, closeFn, err := c.openSvc(c.dbPath)
 			if err != nil {
@@ -108,9 +104,6 @@ func newSourcesUpdateCmd(c *cliCtx) *cobra.Command {
 			if cmd.Flags().Changed("description") {
 				cur.Description = description
 			}
-			if trustSet {
-				cur.Trust = trust
-			}
 			if err := svc.UpdateSource(cmd.Context(), *cur); err != nil {
 				return err
 			}
@@ -118,10 +111,6 @@ func newSourcesUpdateCmd(c *cliCtx) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&description, "description", "", "new description")
-	cmd.Flags().IntVar(&trust, "trust", 100, "new trust (0-100)")
-	cmd.PreRun = func(cmd *cobra.Command, _ []string) {
-		trustSet = cmd.Flags().Changed("trust")
-	}
 	return cmd
 }
 

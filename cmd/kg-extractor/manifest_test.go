@@ -57,14 +57,13 @@ func TestManifestParsesV2Fields(t *testing.T) {
 	path := writeManifest(t, `{
 	  "name":"foo","version":"1.0","description":"x",
 	  "runtime":"declarative-native","executable":"foo",
-	  "source_id":"acme/foo:1.0","trust":80,
+	  "source_id":"acme/foo:1.0",
 	  "supported_scopes":["domain-source","domain"]
 	}`)
 	m, err := parseManifest(path)
 	require.NoError(t, err)
 	require.Equal(t, runtimeDeclarativeNative, m.Runtime)
 	require.Equal(t, "acme/foo:1.0", m.SourceID)
-	require.Equal(t, 80, m.Trust)
 	require.Equal(t, []string{"domain-source", "domain"}, m.SupportedScopes)
 }
 
@@ -73,7 +72,6 @@ func TestManifestSourceIDDefaultsToNameVersion(t *testing.T) {
 	m, err := parseManifest(path)
 	require.NoError(t, err)
 	require.Equal(t, "foo:1.0", m.SourceID)
-	require.Equal(t, 100, m.Trust)
 }
 
 func TestManifestRejectsUnknownRuntime(t *testing.T) {

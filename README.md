@@ -89,10 +89,10 @@ plugin → kg-extractor (validator) → kg apply (declarative) or kg batch (impe
 ### Source model
 
 Every mutation has a writer source. Sources are auto-registered on first
-write; `kg sources register --id ... --trust ...` lets you refine description
-and trust score. Nodes are single-owner (the source that created them);
-edges are reference-counted via `edge_claims`. An edge survives as long as
-≥1 source claims it.
+write; `kg sources register --id ...` lets you refine the description.
+Nodes are single-owner (the source that created them); edges are
+reference-counted via `edge_claims`. An edge survives as long as ≥1 source
+claims it.
 
 Properties are stored namespaced by source id:
 
@@ -104,8 +104,8 @@ Properties are stored namespaced by source id:
 ```
 
 `kg node get <id>` shows the raw namespaced form by default;
-`--source <id>` flattens one namespace; `--merged` returns a trust-ranked
-union with a sibling `_property_sources` attribution map.
+`--source <id>` flattens one namespace; `--merged` returns a union of all
+namespaces with a sibling `_property_sources` attribution map.
 
 ### Try the bash demo (declarative)
 

@@ -15,7 +15,7 @@ func seedDomain(t *testing.T, s *store.Store) {
 	t.Helper()
 	ctx := context.Background()
 	require.NoError(t, s.UpsertSource(ctx, graph.Source{
-		ID: "manual", Trust: 100,
+		ID:        "manual",
 		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
 	}))
 	require.NoError(t, s.CreateDomain(ctx, graph.Domain{

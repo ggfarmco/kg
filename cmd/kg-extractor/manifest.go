@@ -30,7 +30,6 @@ type manifest struct {
 	SupportedLanguages []string    `json:"supported_languages,omitempty"`
 	SupportedScopes    []string    `json:"supported_scopes,omitempty"`
 	SourceID           string      `json:"source_id,omitempty"`
-	Trust              int         `json:"trust,omitempty"`
 }
 
 var pluginNameRE = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -71,9 +70,6 @@ func parseManifest(path string) (*manifest, error) {
 	}
 	if m.SourceID == "" {
 		m.SourceID = m.Name + ":" + m.Version
-	}
-	if m.Trust == 0 {
-		m.Trust = 100
 	}
 	if len(m.SupportedScopes) == 0 {
 		m.SupportedScopes = []string{"domain-source"}

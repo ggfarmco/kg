@@ -158,7 +158,6 @@ func (s *FakeStore) UpdateSource(_ context.Context, src graph.Source) error {
 		return graph.ErrSourceNotFound
 	}
 	cur.Description = src.Description
-	cur.Trust = src.Trust
 	s.sources[src.ID] = cur
 	return nil
 }

@@ -144,9 +144,8 @@ func TestAddNodeAutoRegistersSourceAndStoresIt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, graph.SourceID("tree-sitter:0.1.0"), n.Source)
 
-	src, err := fs.GetSource(t.Context(), "tree-sitter:0.1.0")
+	_, err = fs.GetSource(t.Context(), "tree-sitter:0.1.0")
 	require.NoError(t, err)
-	require.Equal(t, 100, src.Trust)
 }
 
 func TestAddNodeRequiresSource(t *testing.T) {

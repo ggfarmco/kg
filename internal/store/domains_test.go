@@ -46,7 +46,7 @@ func TestDeleteDomainWithNodesIsRestricted(t *testing.T) {
 	s := openTestDB(t)
 	ctx := t.Context()
 	require.NoError(t, s.UpsertSource(ctx, graph.Source{
-		ID: "manual", Trust: 100,
+		ID:        "manual",
 		FirstSeen: time.UnixMilli(1), LastSeen: time.UnixMilli(1),
 	}))
 	require.NoError(t, s.CreateDomain(ctx, graph.Domain{ID: "cars", Layers: []string{"system"}, CreatedAt: time.UnixMilli(1)}))
