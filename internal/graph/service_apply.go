@@ -200,37 +200,42 @@ func (s *Service) applyCleanup(
 	ctx context.Context, residual map[NodeID]Node, source SourceID, opts ApplyOptions, res *ApplyResult,
 ) error {
 	for id := range residual {
-		incoming, err := s.store.EdgesTo(ctx, id, nil)
-		if err != nil {
-			return err
-		}
-		outgoing, err := s.store.EdgesFrom(ctx, id, nil)
-		if err != nil {
-			return err
-		}
-		for _, e := range append(incoming, outgoing...) {
-			claims, err := s.store.ListEdgeClaims(ctx, e.ID)
+		if !opts.ForceCascade {
+			incoming, err := s.store.EdgesTo(ctx, id, nil)
 			if err != nil {
 				return err
 			}
-			for _, c := range claims {
-				if c.Source == source {
-					continue
+			outgoing, err := s.store.EdgesFrom(ctx, id, nil)
+			if err != nil {
+				return err
+			}
+			for _, e := range append(incoming, outgoing...) {
+				claims, err := s.store.ListEdgeClaims(ctx, e.ID)
+				if err != nil {
+					return err
 				}
-				if !opts.ForceCascade {
-					return fmt.Errorf("%w: node=%s edge=%d", ErrNodeHasForeignClaims, id, e.ID)
+				for _, c := range claims {
+					if c.Source != source {
+						return fmt.Errorf("%w: node=%s edge=%d", ErrNodeHasForeignClaims, id, e.ID)
+					}
 				}
 			}
+			children, err := s.store.ChildrenOf(ctx, id)
+			if err != nil {
+				return err
+			}
+			if len(children) > 0 {
+				return fmt.Errorf("%w: node=%s children=%d", ErrHasDependents, id, len(children))
+			}
 		}
-		children, err := s.store.ChildrenOf(ctx, id)
-		if err != nil {
-			return err
-		}
-		if len(children) > 0 && !opts.ForceCascade {
-			return fmt.Errorf("%w: node=%s children=%d", ErrHasDependents, id, len(children))
-		}
-		if err := s.store.DeleteNode(ctx, id); err != nil {
-			return err
+		if opts.ForceCascade {
+			if err := s.store.DeleteNode(ctx, id); err != nil {
+				return err
+			}
+		} else {
+			if err := s.DeleteNode(ctx, id, source); err != nil {
+				return err
+			}
 		}
 		res.NodesRemoved++
 	}

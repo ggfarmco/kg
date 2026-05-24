@@ -184,3 +184,66 @@ func TestApplyAdditiveScopeSkipsCleanup(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, res.NodesRemoved, "additive scope leaves d:b alone")
 }
+
+func TestApplyForceCascadeRemovesForeignClaims(t *testing.T) {
+	svc, fs := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	_, err = svc.AddEdge(t.Context(), graph.AddEdgeInput{Source: "d:a", Target: "d:b", Type: "imports", WriterSource: "y"})
+	require.NoError(t, err)
+
+	res, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		Nodes: []snapshot.NodeSpec{{ID: "d:b", Layer: "l1", Name: "b"}},
+		Edges: []snapshot.EdgeSpec{},
+	}, graph.ApplyOptions{ForceCascade: true})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.NodesRemoved)
+	es, _ := fs.EdgesFrom(t.Context(), "d:a", nil)
+	require.Empty(t, es, "edge cascade-removed along with node, foreign claim dropped")
+}
+
+func TestApplyForceDomainTakeoverBypassesForeignCheck(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes:      []snapshot.NodeSpec{{ID: "d:a", Layer: "l1", Name: "a"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	_, err = svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "y", Domain: "d", Scope: snapshot.ScopeDomain,
+		Nodes:          []snapshot.NodeSpec{{ID: "d:b", Layer: "l1", Name: "b"}},
+	}, graph.ApplyOptions{ForceDomainTakeover: true})
+	require.NoError(t, err)
+}
+
+func TestApplyBlocksRemovalOfNodeWithForeignEdgeClaim(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	_, err = svc.AddEdge(t.Context(), graph.AddEdgeInput{Source: "d:a", Target: "d:b", Type: "imports", WriterSource: "y"})
+	require.NoError(t, err)
+
+	_, err = svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		Nodes: []snapshot.NodeSpec{{ID: "d:b", Layer: "l1", Name: "b"}},
+		Edges: []snapshot.EdgeSpec{},
+	}, graph.ApplyOptions{})
+	require.ErrorIs(t, err, graph.ErrNodeHasForeignClaims, "should block removal without ForceCascade")
+}
