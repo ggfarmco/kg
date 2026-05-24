@@ -40,8 +40,8 @@ func TestExtractWithDBForwardsToKgBatch(t *testing.T) {
 	require.NoError(t, writeFile(filepath.Join(dir, "manifest.json"), `{"name":"demo","version":"0.1.0","description":"x","runtime":"command","command":["bash","extract.sh"]}`))
 	require.NoError(t, writeFile(filepath.Join(dir, "extract.sh"), `#!/usr/bin/env bash
 cat > /dev/null
-echo '{"op":"domain.add","args":{"id":"a","layers":["l"]}}'
-echo '{"op":"node.add","args":{"domain":"a","layer":"l","name":"n"}}'
+echo '{"op":"domain.add","args":{"id":"a","layers":["l"],"source":"cli"}}'
+echo '{"op":"node.add","args":{"domain":"a","layer":"l","name":"n","source":"cli"}}'
 `))
 	require.NoError(t, exec.Command("chmod", "+x", filepath.Join(dir, "extract.sh")).Run())
 

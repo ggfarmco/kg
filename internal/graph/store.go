@@ -7,6 +7,7 @@ import (
 
 type Store interface {
 	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+	InTxOrConn(ctx context.Context, fn func(ctx context.Context) error) error
 
 	UpsertSource(ctx context.Context, src Source) error
 	GetSource(ctx context.Context, id SourceID) (*Source, error)

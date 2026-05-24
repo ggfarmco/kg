@@ -98,6 +98,16 @@ func (s *FakeStore) InTx(ctx context.Context, fn func(ctx context.Context) error
 	return fn(ctx)
 }
 
+func (s *FakeStore) InTxOrConn(ctx context.Context, fn func(ctx context.Context) error) error {
+	s.mu.Lock()
+	already := s.inTx
+	s.mu.Unlock()
+	if already {
+		return fn(ctx)
+	}
+	return s.InTx(ctx, fn)
+}
+
 func (s *FakeStore) UpsertSource(_ context.Context, src graph.Source) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

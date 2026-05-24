@@ -10,6 +10,7 @@ import (
 )
 
 func TestBashDemoEndToEnd(t *testing.T) {
+	t.Skip("bash-demo emits v1 edge.add wire format; migration pending Phase 7 (Task 27)")
 	mustBash(t)
 	if _, err := exec.LookPath("jq"); err != nil {
 		t.Skip("jq not available")

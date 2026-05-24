@@ -11,13 +11,14 @@ import (
 
 func TestOpNameWireValues(t *testing.T) {
 	cases := map[batch.OpName]string{
-		batch.OpMeta:       "meta",
-		batch.OpDomainAdd:  "domain.add",
-		batch.OpNodeAdd:    "node.add",
-		batch.OpNodeUpdate: "node.update",
-		batch.OpNodeDelete: "node.delete",
-		batch.OpEdgeAdd:    "edge.add",
-		batch.OpEdgeDelete: "edge.delete",
+		batch.OpMeta:        "meta",
+		batch.OpDomainAdd:   "domain.add",
+		batch.OpNodeAdd:     "node.add",
+		batch.OpNodeUpdate:  "node.update",
+		batch.OpNodeDelete:  "node.delete",
+		batch.OpEdgeAdd:     "edge.add",
+		batch.OpEdgeDelete:  "edge.delete",
+		batch.OpEdgeUnclaim: "edge.unclaim",
 	}
 	for got, want := range cases {
 		require.Equal(t, want, string(got))
@@ -33,7 +34,7 @@ func TestDomainAddArgsRoundTrip(t *testing.T) {
 	}
 	b, err := json.Marshal(in)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"id":"my-app","layers":["package","file","decl"],"description":"...","if_not_exists":true}`, string(b))
+	require.JSONEq(t, `{"id":"my-app","layers":["package","file","decl"],"description":"...","source":"","if_not_exists":true}`, string(b))
 
 	var out batch.DomainAddArgs
 	require.NoError(t, json.Unmarshal(b, &out))
@@ -41,22 +42,22 @@ func TestDomainAddArgsRoundTrip(t *testing.T) {
 }
 
 func TestNodeAddArgsOmitsEmpty(t *testing.T) {
-	in := batch.NodeAddArgs{Domain: "my-app", Layer: "package", Name: "fmt"}
+	in := batch.NodeAddArgs{Domain: "my-app", Layer: "package", Name: "fmt", Source: "cli"}
 	b, err := json.Marshal(in)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"domain":"my-app","layer":"package","name":"fmt"}`, string(b))
+	require.JSONEq(t, `{"domain":"my-app","layer":"package","name":"fmt","source":"cli"}`, string(b))
 }
 
 func TestNodeUpdateArgsAbsentFieldsStayNil(t *testing.T) {
 	var out batch.NodeUpdateArgs
-	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y"}`), &out))
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y","source":"cli"}`), &out))
 	require.Nil(t, out.Name)
-	require.Nil(t, out.Summary)
+	require.Nil(t, out.Properties)
 }
 
 func TestNodeUpdateArgsExplicitEmptyStringIsDistinguishable(t *testing.T) {
 	var out batch.NodeUpdateArgs
-	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y","name":""}`), &out))
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"x:y","name":"","source":"cli"}`), &out))
 	require.NotNil(t, out.Name)
 	require.Equal(t, "", *out.Name)
 }
@@ -73,4 +74,11 @@ func TestMetaArgsTotalOpsOptional(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"plugin":"x"}`), &out))
 	require.Equal(t, "x", out.Plugin)
 	require.Zero(t, out.TotalOps)
+}
+
+func TestEdgeAddArgsSrcWireField(t *testing.T) {
+	in := batch.EdgeAddArgs{Src: "a:b", Target: "a:c", Type: "imports", Source: "writer"}
+	b, err := json.Marshal(in)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"src":"a:b","target":"a:c","type":"imports","source":"writer"}`, string(b))
 }

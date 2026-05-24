@@ -363,7 +363,7 @@ func (s *Service) RemoveEdgeClaim(ctx context.Context, id EdgeID, source SourceI
 	if source == "" {
 		return ErrSourceRequired
 	}
-	return s.store.InTx(ctx, func(ctx context.Context) error {
+	return s.store.InTxOrConn(ctx, func(ctx context.Context) error {
 		if err := s.store.RemoveEdgeClaim(ctx, id, source); err != nil {
 			return err
 		}
