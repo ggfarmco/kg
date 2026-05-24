@@ -42,13 +42,13 @@ func invokePlugin(ctx context.Context, p discoveredPlugin, cfg pluginConfig, std
 
 func buildPluginCommand(ctx context.Context, p discoveredPlugin) (*exec.Cmd, error) {
 	switch p.Manifest.Runtime {
-	case runtimeNative:
+	case runtimeNative, runtimeDeclarativeNative:
 		exe := p.Manifest.Executable
 		if !filepath.IsAbs(exe) {
 			exe = filepath.Join(p.Dir, exe)
 		}
 		return exec.CommandContext(ctx, exe), nil
-	case runtimeCommand:
+	case runtimeCommand, runtimeDeclarativeCommand:
 		if len(p.Manifest.Command) == 0 {
 			return nil, errors.New("plugin command[] is empty")
 		}
