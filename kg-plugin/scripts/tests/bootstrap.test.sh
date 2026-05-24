@@ -45,7 +45,8 @@ for arg; do
   if [ "\$prev" = "-o" ]; then out="\$arg"; fi
   prev="\$arg"
 done
-url="\${@: -1}"
+url=""
+for arg; do url="\$arg"; done
 case "\$url" in
   *"$TARBALL_NAME") cp "$STUB/tarball.tar.gz" "\$out" ;;
   *"checksums.txt") cp "$STUB/checksums.txt" "\$out" ;;
@@ -69,5 +70,7 @@ fail() { echo "FAIL bootstrap.sh: $1"; exit 1; }
 [ ! -e "$KG_HOME/bin/README.md"     ] || fail "README leaked into bin/"
 [ ! -e "$KG_HOME/bin/LICENSE"       ] || fail "LICENSE leaked into bin/"
 [ ! -e "$KG_HOME/bin/manifest.json" ] || fail "manifest leaked into bin/"
+[ ! -e "$KG_HOME/extractor-plugins/tree-sitter/README.md" ] || fail "README leaked into extractor-plugins/"
+[ ! -e "$KG_HOME/extractor-plugins/tree-sitter/LICENSE"   ] || fail "LICENSE leaked into extractor-plugins/"
 
 echo "OK bootstrap.sh"

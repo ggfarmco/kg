@@ -4,7 +4,8 @@ cd "$(dirname "$0")"
 
 PLUGIN_ROOT=$(mktemp -d)
 FAKE_HOME=$(mktemp -d)
-trap 'rm -rf "$PLUGIN_ROOT" "$FAKE_HOME"' EXIT
+SHIM=$(mktemp -d)
+trap 'rm -rf "$PLUGIN_ROOT" "$FAKE_HOME" "$SHIM"' EXIT
 
 mkdir -p "$PLUGIN_ROOT/.claude-plugin" "$PLUGIN_ROOT/scripts"
 echo '{"name":"kg","version":"0.3.1"}' > "$PLUGIN_ROOT/.claude-plugin/plugin.json"
@@ -18,6 +19,14 @@ mkdir -p "$KG_HOME/bin" "$KG_HOME/extractor-plugins/tree-sitter"
 printf '#!/bin/sh\necho kg\n' > "$KG_HOME/bin/kg"
 chmod +x "$KG_HOME/bin/kg"
 echo "v0.3.1" > "$KG_HOME/VERSION"
+
+cat > "$SHIM/curl" <<'EOF'
+#!/usr/bin/env bash
+echo "FAIL bootstrap-idempotent: curl called during idempotent run" >&2
+exit 1
+EOF
+chmod +x "$SHIM/curl"
+export PATH="$SHIM:$PATH"
 
 out=$(bash "$PLUGIN_ROOT/scripts/bootstrap.sh" 2>&1)
 
