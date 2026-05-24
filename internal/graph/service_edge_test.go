@@ -47,14 +47,15 @@ func TestAddEdgeRejectsEmptyType(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAddEdgeDuplicate(t *testing.T) {
+func TestAddEdgeDuplicateIsIdempotent(t *testing.T) {
 	svc, _ := newService(t)
 	a, b := seedTwoNodes(t, svc)
 	in := graph.AddEdgeInput{Source: string(a), Target: string(b), Type: "depends_on"}
-	_, err := svc.AddEdge(t.Context(), in)
+	e1, err := svc.AddEdge(t.Context(), in)
 	require.NoError(t, err)
-	_, err = svc.AddEdge(t.Context(), in)
-	require.ErrorIs(t, err, graph.ErrEdgeAlreadyExists)
+	e2, err := svc.AddEdge(t.Context(), in)
+	require.NoError(t, err)
+	require.Equal(t, e1.ID, e2.ID)
 }
 
 func TestEdgesFromAndTo(t *testing.T) {
@@ -81,13 +82,12 @@ func TestDeleteEdge(t *testing.T) {
 	require.ErrorIs(t, svc.DeleteEdge(t.Context(), e.ID), graph.ErrEdgeNotFound)
 }
 
-func TestAddEdgeStoresProperties(t *testing.T) {
+func TestAddEdgeHasEmptyNamespacedProperties(t *testing.T) {
 	svc, _ := newService(t)
 	a, b := seedTwoNodes(t, svc)
 	e, err := svc.AddEdge(t.Context(), graph.AddEdgeInput{
 		Source: string(a), Target: string(b), Type: "x",
-		Properties: map[string]any{"weight": float64(1)},
 	})
 	require.NoError(t, err)
-	require.Equal(t, float64(1), e.Properties["weight"])
+	require.NotNil(t, e.Properties)
 }

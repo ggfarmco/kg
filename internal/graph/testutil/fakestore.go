@@ -237,18 +237,18 @@ func (s *FakeStore) ChildrenOf(_ context.Context, parentID graph.NodeID) ([]grap
 	return out, nil
 }
 
-func (s *FakeStore) CreateEdge(_ context.Context, e *graph.Edge) error {
+func (s *FakeStore) UpsertEdge(_ context.Context, e graph.Edge) (graph.EdgeID, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, existing := range s.edges {
 		if existing.SourceID == e.SourceID && existing.TargetID == e.TargetID && existing.Type == e.Type {
-			return graph.ErrEdgeAlreadyExists
+			return existing.ID, nil
 		}
 	}
 	e.ID = s.nextEdge
 	s.nextEdge++
-	s.edges[e.ID] = *e
-	return nil
+	s.edges[e.ID] = e
+	return e.ID, nil
 }
 
 func (s *FakeStore) GetEdge(_ context.Context, id graph.EdgeID) (*graph.Edge, error) {

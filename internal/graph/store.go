@@ -17,7 +17,7 @@ type Store interface {
 	DeleteNode(ctx context.Context, id NodeID) error
 	ChildrenOf(ctx context.Context, parentID NodeID) ([]Node, error)
 
-	CreateEdge(ctx context.Context, e *Edge) error
+	UpsertEdge(ctx context.Context, e Edge) (EdgeID, error)
 	GetEdge(ctx context.Context, id EdgeID) (*Edge, error)
 	DeleteEdge(ctx context.Context, id EdgeID) error
 	EdgesFrom(ctx context.Context, sourceID NodeID, types []string) ([]Edge, error)

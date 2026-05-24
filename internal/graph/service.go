@@ -77,7 +77,6 @@ type AddNodeInput struct {
 	Name       string
 	ID         string
 	Parent     string
-	Summary    string
 	Properties map[string]any
 }
 
@@ -146,8 +145,8 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 		Layer:      in.Layer,
 		Name:       in.Name,
 		ParentID:   parentPtr,
-		Summary:    in.Summary,
-		Properties: nonNilProps(in.Properties),
+		Source:     "manual",
+		Properties: map[SourceID]map[string]any{},
 		Revision:   1,
 		CreatedAt:  now,
 		UpdatedAt:  now,
@@ -159,8 +158,7 @@ func (s *Service) AddNode(ctx context.Context, in AddNodeInput) (*Node, error) {
 }
 
 type UpdateNodeInput struct {
-	Name    *string
-	Summary *string
+	Name *string
 }
 
 func (s *Service) GetNode(ctx context.Context, id NodeID) (*Node, error) {
@@ -182,9 +180,6 @@ func (s *Service) UpdateNode(ctx context.Context, id NodeID, in UpdateNodeInput)
 	}
 	if in.Name != nil {
 		cur.Name = *in.Name
-	}
-	if in.Summary != nil {
-		cur.Summary = *in.Summary
 	}
 	cur.UpdatedAt = s.now()
 	if err := s.store.UpdateNode(ctx, *cur); err != nil {
@@ -223,13 +218,15 @@ func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
 		SourceID:   src,
 		TargetID:   dst,
 		Type:       in.Type,
-		Properties: nonNilProps(in.Properties),
+		Properties: map[SourceID]map[string]any{},
 		Revision:   1,
 		CreatedAt:  s.now(),
 	}
-	if err := s.store.CreateEdge(ctx, e); err != nil {
+	id, err := s.store.UpsertEdge(ctx, *e)
+	if err != nil {
 		return nil, err
 	}
+	e.ID = id
 	return e, nil
 }
 

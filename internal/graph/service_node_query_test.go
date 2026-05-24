@@ -51,10 +51,8 @@ func TestUpdateNodeBumpsRevision(t *testing.T) {
 	_, err := svc.AddNode(t.Context(), graph.AddNodeInput{Domain: "cars", Layer: "system", Name: "pt"})
 	require.NoError(t, err)
 
-	newSummary := "powertrain summary"
-	updated, err := svc.UpdateNode(t.Context(), "cars:pt", graph.UpdateNodeInput{Summary: &newSummary})
+	updated, err := svc.UpdateNode(t.Context(), "cars:pt", graph.UpdateNodeInput{})
 	require.NoError(t, err)
-	require.Equal(t, "powertrain summary", updated.Summary)
 	require.Equal(t, int64(2), updated.Revision)
 }
 

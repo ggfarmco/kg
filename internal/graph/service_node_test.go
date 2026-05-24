@@ -126,25 +126,12 @@ func TestAddNodeAlreadyExists(t *testing.T) {
 	require.ErrorIs(t, err, graph.ErrNodeAlreadyExists)
 }
 
-func TestAddNodeStoresProperties(t *testing.T) {
+func TestAddNodeHasEmptyNamespacedProperties(t *testing.T) {
 	svc, _ := newService(t)
 	seedCarsDomain(t, svc)
 	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
 		Domain: "cars", Layer: "system", Name: "pt",
-		Properties: map[string]any{"horsepower": float64(200)},
 	})
 	require.NoError(t, err)
-	require.Equal(t, float64(200), n.Properties["horsepower"])
-}
-
-func TestAddNodeDoesNotAliasInputProperties(t *testing.T) {
-	svc, _ := newService(t)
-	seedCarsDomain(t, svc)
-	props := map[string]any{"horsepower": float64(200)}
-	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
-		Domain: "cars", Layer: "system", Name: "pt", Properties: props,
-	})
-	require.NoError(t, err)
-	props["horsepower"] = float64(999)
-	require.Equal(t, float64(200), n.Properties["horsepower"], "mutating the input map must not affect the stored node")
+	require.NotNil(t, n.Properties)
 }
