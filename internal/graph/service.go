@@ -397,6 +397,14 @@ func (s *Service) EdgesTo(ctx context.Context, dst NodeID, types []string) ([]Ed
 	return s.store.EdgesTo(ctx, dst, types)
 }
 
+func (s *Service) EdgeIDsClaimedBy(ctx context.Context, source SourceID) ([]EdgeID, error) {
+	return s.store.EdgeIDsClaimedBy(ctx, source)
+}
+
+func (s *Service) GetEdge(ctx context.Context, id EdgeID) (*Edge, error) {
+	return s.store.GetEdge(ctx, id)
+}
+
 func (s *Service) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return s.store.InTx(ctx, fn)
 }

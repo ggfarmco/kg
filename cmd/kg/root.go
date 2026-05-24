@@ -28,7 +28,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 		SilenceUsage:  true,
 	}
 	root.PersistentFlags().StringVar(&c.dbPath, "db", envOr("KG_DB", "./kg.db"), "path to the SQLite database file")
-	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c), newSourcesCmd(c), newApplyCmd(c))
+	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c), newSourcesCmd(c), newApplyCmd(c), newExportCmd(c))
 	return root
 }
 
