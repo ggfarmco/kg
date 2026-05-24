@@ -226,6 +226,26 @@ func TestApplyForceDomainTakeoverBypassesForeignCheck(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestApplyOverrideScopeAdditivePreservesUnclaimedEdges(t *testing.T) {
+	svc, fs := newService(t)
+	base := snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}
+	_, err := svc.Apply(t.Context(), base, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	base.Edges = nil
+	_, err = svc.Apply(t.Context(), base, graph.ApplyOptions{OverrideScope: snapshot.ScopeAdditive})
+	require.NoError(t, err)
+	es, _ := fs.EdgesFrom(t.Context(), "d:a", nil)
+	require.Len(t, es, 1, "additive override should preserve edges")
+}
+
 func TestApplyBlocksRemovalOfNodeWithForeignEdgeClaim(t *testing.T) {
 	svc, _ := newService(t)
 	_, err := svc.Apply(t.Context(), snapshot.Snapshot{

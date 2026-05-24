@@ -84,8 +84,8 @@ func validateOp(op batch.Op, line int) error {
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return fmt.Errorf("line %d: edge.add args: %w", line, err)
 		}
-		if a.Source == "" || a.Target == "" || a.Type == "" {
-			return fmt.Errorf("line %d: edge.add requires source, target, type", line)
+		if a.Src == "" || a.Target == "" || a.Type == "" {
+			return fmt.Errorf("line %d: edge.add requires src, target, type", line)
 		}
 	case batch.OpEdgeDelete:
 		var a batch.EdgeDeleteArgs

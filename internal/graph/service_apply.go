@@ -90,7 +90,7 @@ func (s *Service) Apply(ctx context.Context, snap snapshot.Snapshot, opts ApplyO
 				return err
 			}
 		}
-		if err := s.applyEdges(ctx, snap, source, res); err != nil {
+		if err := s.applyEdges(ctx, snap, source, scope, res); err != nil {
 			return err
 		}
 		if scope != snapshot.ScopeAdditive {
@@ -242,7 +242,7 @@ func (s *Service) applyCleanup(
 	return nil
 }
 
-func (s *Service) applyEdges(ctx context.Context, snap snapshot.Snapshot, source SourceID, res *ApplyResult) error {
+func (s *Service) applyEdges(ctx context.Context, snap snapshot.Snapshot, source SourceID, scope snapshot.Scope, res *ApplyResult) error {
 	prevClaimedIDs, err := s.store.EdgeIDsClaimedBy(ctx, source)
 	if err != nil {
 		return err
@@ -284,7 +284,7 @@ func (s *Service) applyEdges(ctx context.Context, snap snapshot.Snapshot, source
 		delete(prevClaimed, id)
 	}
 
-	if snap.Scope != snapshot.ScopeAdditive {
+	if scope != snapshot.ScopeAdditive {
 		for id := range prevClaimed {
 			if err := s.store.RemoveEdgeClaim(ctx, id, source); err != nil {
 				return err
