@@ -18,6 +18,11 @@ case "$(uname -m)" in
 esac
 PLATFORM="${OS}_${ARCH}"
 
+if [ "$OS" = "darwin" ] && [ "$ARCH" = "amd64" ]; then
+  echo "Intel macOS is not supported by v0.3.1+ releases. Build from source: https://github.com/ggfarmco/kg#developer-setup" >&2
+  exit 2
+fi
+
 if ! command -v jq >/dev/null; then
   echo "jq is required to read plugin manifest. Install: brew install jq / apt install jq" >&2
   exit 2

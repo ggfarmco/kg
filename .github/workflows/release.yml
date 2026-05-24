@@ -14,7 +14,6 @@ jobs:
       matrix:
         include:
           - { os: macos-14,         goos: darwin, goarch: arm64 }
-          - { os: macos-13,         goos: darwin, goarch: amd64 }
           - { os: ubuntu-24.04,     goos: linux,  goarch: amd64 }
           - { os: ubuntu-24.04-arm, goos: linux,  goarch: arm64 }
 
@@ -78,7 +77,7 @@ jobs:
           cd release-assets
           sha256sum kg_*.tar.gz > checksums.txt
           cat checksums.txt
-          test "$(ls kg_*.tar.gz | wc -l)" -eq 4 || { echo "expected 4 tarballs, found $(ls kg_*.tar.gz | wc -l)"; exit 1; }
+          test "$(ls kg_*.tar.gz | wc -l)" -eq 3 || { echo "expected 3 tarballs, found $(ls kg_*.tar.gz | wc -l)"; exit 1; }
 
       - name: Create GitHub release
         env:

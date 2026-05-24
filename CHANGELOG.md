@@ -10,7 +10,7 @@
 
 ### Release pipeline
 
-- New: `.github/workflows/release.yml` — pure-bash matrix release workflow building all 4 supported platforms (`darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64`) natively on GitHub-hosted runners. Each release uploads 4 `.tar.gz` archives (containing `kg`, `kg-extractor`, `kg-extractor-tree-sitter`, plus `manifest.json`, README, LICENSE) and a single `checksums.txt`. (GoReleaser was evaluated but skipped — the `plugins/tree-sitter/` separate Go module made a pure-bash approach simpler.)
+- New: `.github/workflows/release.yml` — pure-bash matrix release workflow building 3 supported platforms (`darwin/arm64`, `linux/amd64`, `linux/arm64`) natively on GitHub-hosted runners. Each release uploads 3 `.tar.gz` archives (containing `kg`, `kg-extractor`, `kg-extractor-tree-sitter`, plus `manifest.json`, README, LICENSE) and a single `checksums.txt`. (GoReleaser was evaluated but skipped — the `plugins/tree-sitter/` separate Go module made a pure-bash approach simpler. Intel macOS was dropped from the matrix — macos-13 runners have long queue times on free tier; build from source on Intel Macs.)
 
 ## v0.3.0 — 2026-05-24
 

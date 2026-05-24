@@ -165,7 +165,7 @@ above) is a prerequisite.
 # newer plugin version is installed.
 ```
 
-The plugin works on `darwin/arm64`, `darwin/amd64`, `linux/amd64`, and `linux/arm64`. Windows and Alpine/musl are not supported; build from source (Developer setup below) on those platforms.
+The plugin works on `darwin/arm64` (Apple Silicon), `linux/amd64`, and `linux/arm64`. Intel macOS, Windows, and Alpine/musl are not supported; build from source (Developer setup below) on those platforms.
 
 Override the install location via `KG_HOME` (defaults to `$HOME/.config/kg/`). `jq` is a prerequisite for the bootstrap script — install via `brew install jq` or `apt install jq` if absent.
 
