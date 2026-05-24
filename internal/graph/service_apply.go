@@ -151,6 +151,13 @@ func (s *Service) applyNodeSpec(
 		other, gerr := s.store.GetNode(ctx, id)
 		if gerr == nil && other != nil {
 			if scope == snapshot.ScopeAdditive {
+				if len(spec.Properties) == 0 {
+					return nil
+				}
+				if err := s.SetNodeProperties(ctx, id, source, spec.Properties); err != nil {
+					return err
+				}
+				res.NodesUpdated++
 				return nil
 			}
 			return fmt.Errorf("%w: id=%s owner=%s", ErrNodeOwnedByDifferentSource, id, other.Source)

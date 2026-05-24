@@ -34,3 +34,19 @@ func TestValidateAcceptsRelaxedCompoundSlug(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestValidateAdditiveAllowsBareNodeID(t *testing.T) {
+	err := snapshot.Validate(&snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes:           []snapshot.NodeSpec{{ID: "d:x", Properties: map[string]any{"k": "v"}}},
+	})
+	require.NoError(t, err)
+}
+
+func TestValidateDomainSourceStillRequiresLayerAndName(t *testing.T) {
+	err := snapshot.Validate(&snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		Nodes:           []snapshot.NodeSpec{{ID: "d:x"}},
+	})
+	require.Error(t, err)
+}
