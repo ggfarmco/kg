@@ -322,7 +322,7 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		}
 		_, err := svc.AddNode(ctx, graph.AddNodeInput{
 			Domain: a.Domain, Layer: a.Layer, Name: a.Name,
-			ID: a.ID, Parent: a.Parent, Summary: a.Summary, Properties: a.Properties,
+			ID: a.ID, Parent: a.Parent, Properties: a.Properties,
 		})
 		return classifyIfNotExists(err, a.IfNotExists, graph.ErrNodeAlreadyExists)
 
@@ -331,7 +331,7 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return false, fmt.Errorf("node.update args: %w", err)
 		}
-		_, err := svc.UpdateNode(ctx, graph.NodeID(a.ID), graph.UpdateNodeInput{Name: a.Name, Summary: a.Summary})
+		_, err := svc.UpdateNode(ctx, graph.NodeID(a.ID), graph.UpdateNodeInput{Name: a.Name})
 		if err != nil {
 			return false, err
 		}

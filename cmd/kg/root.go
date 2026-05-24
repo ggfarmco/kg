@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -41,6 +42,15 @@ func envOr(key, def string) string {
 func openService(dbPath string) (*graph.Service, func(), error) {
 	st, err := store.Open(dbPath)
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := st.UpsertSource(context.Background(), graph.Source{
+		ID:        "manual",
+		Trust:     100,
+		FirstSeen: time.UnixMilli(0),
+		LastSeen:  time.UnixMilli(0),
+	}); err != nil {
+		_ = st.Close()
 		return nil, nil, err
 	}
 	svc := graph.NewService(st, nil)

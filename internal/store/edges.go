@@ -3,43 +3,44 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/ggfarmco/kg/internal/graph"
 )
 
-func (s *Store) CreateEdge(ctx context.Context, e *graph.Edge) error {
-	props, err := json.Marshal(e.Properties)
+func (s *Store) UpsertEdge(ctx context.Context, e graph.Edge) (graph.EdgeID, error) {
+	props, err := encodeNamespacedProps(e.Properties)
 	if err != nil {
-		return fmt.Errorf("marshal properties: %w", err)
+		return 0, err
 	}
-	return s.inTxOrConn(ctx, func(ctx context.Context) error {
+	var id int64
+	err = s.inTxOrConn(ctx, func(ctx context.Context) error {
 		q := New(s.conn(ctx))
-		id, err := q.CreateEdge(ctx, CreateEdgeParams{
+		newID, qerr := q.UpsertEdge(ctx, UpsertEdgeParams{
 			SourceID:   string(e.SourceID),
 			TargetID:   string(e.TargetID),
 			Type:       e.Type,
-			Properties: string(props),
+			Properties: props,
 			CreatedAt:  e.CreatedAt.UnixMilli(),
 		})
-		if err != nil {
-			return mapSQLiteErr(err, "edge")
+		if qerr != nil {
+			return mapSQLiteErr(qerr, "edge")
 		}
-		e.ID = graph.EdgeID(id)
-		e.Revision = 1
-		rev := int64(1)
-		return q.AppendChange(ctx, AppendChangeParams{
-			Entity:   "edge",
-			EntityID: strconv.FormatInt(id, 10),
-			Op:       "create",
-			Revision: &rev,
-			At:       e.CreatedAt.UnixMilli(),
-		})
+		id = newID
+		return nil
 	})
+	return graph.EdgeID(id), err
+}
+
+func (s *Store) UpdateEdgeProperties(ctx context.Context, id graph.EdgeID, props map[graph.SourceID]map[string]any) error {
+	encoded, err := encodeNamespacedProps(props)
+	if err != nil {
+		return err
+	}
+	q := New(s.conn(ctx))
+	return q.UpdateEdgeProperties(ctx, UpdateEdgePropertiesParams{ID: int64(id), Properties: encoded})
 }
 
 func (s *Store) GetEdge(ctx context.Context, id graph.EdgeID) (*graph.Edge, error) {
@@ -66,13 +67,7 @@ func (s *Store) DeleteEdge(ctx context.Context, id graph.EdgeID) error {
 		if err := q.DeleteEdge(ctx, int64(id)); err != nil {
 			return mapSQLiteErr(err, "edge")
 		}
-		return q.AppendChange(ctx, AppendChangeParams{
-			Entity:   "edge",
-			EntityID: strconv.FormatInt(int64(id), 10),
-			Op:       "delete",
-			Revision: nil,
-			At:       time.Now().UnixMilli(),
-		})
+		return nil
 	})
 }
 
@@ -121,17 +116,14 @@ func decodeEdges(rows []Edge) ([]graph.Edge, error) {
 }
 
 func decodeEdge(r Edge) (*graph.Edge, error) {
-	var props map[string]any
-	if err := json.Unmarshal([]byte(r.Properties), &props); err != nil {
-		return nil, fmt.Errorf("unmarshal properties: %w", err)
+	props, err := decodeNamespacedProps(r.Properties)
+	if err != nil {
+		return nil, err
 	}
 	return &graph.Edge{
-		ID:         graph.EdgeID(r.ID),
-		SourceID:   graph.NodeID(r.SourceID),
-		TargetID:   graph.NodeID(r.TargetID),
-		Type:       r.Type,
-		Properties: props,
-		Revision:   r.Revision,
-		CreatedAt:  time.UnixMilli(r.CreatedAt),
+		ID: graph.EdgeID(r.ID), SourceID: graph.NodeID(r.SourceID),
+		TargetID: graph.NodeID(r.TargetID), Type: r.Type,
+		Properties: props, Revision: r.Revision,
+		CreatedAt: time.UnixMilli(r.CreatedAt),
 	}, nil
 }

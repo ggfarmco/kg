@@ -31,9 +31,9 @@ func TestNodeWalkthrough(t *testing.T) {
 	kids := env.Data.([]any)
 	require.Len(t, kids, 1)
 
-	code, body = runCLI(dbPath, "node", "update", "cars:powertrain", "--summary", "the drive train")
+	code, body = runCLI(dbPath, "node", "update", "cars:powertrain", "--name", "Powertrain System")
 	require.Equal(t, 0, code, body)
-	require.Contains(t, body, "the drive train")
+	require.Contains(t, body, "Powertrain System")
 
 	code, body = runCLI(dbPath, "node", "delete", "cars:powertrain")
 	require.Equal(t, 1, code, body)

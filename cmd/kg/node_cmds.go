@@ -30,7 +30,7 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			in := graph.AddNodeInput{Domain: domain, Layer: layer, Name: name, ID: id, Parent: parent, Summary: summary}
+			in := graph.AddNodeInput{Domain: domain, Layer: layer, Name: name, ID: id, Parent: parent}
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
@@ -149,9 +149,7 @@ func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
 			if cmd.Flags().Changed("name") {
 				in.Name = &name
 			}
-			if cmd.Flags().Changed("summary") {
-				in.Summary = &summary
-			}
+			_ = summary
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
