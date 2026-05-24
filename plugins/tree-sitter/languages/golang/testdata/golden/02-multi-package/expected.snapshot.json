@@ -1,0 +1,83 @@
+{
+  "domain": "g",
+  "domain_spec": {
+    "description": "Extracted by tree-sitter (go)",
+    "id": "g",
+    "layers": [
+      "package",
+      "file",
+      "decl"
+    ]
+  },
+  "edges": [],
+  "nodes": [
+    {
+      "id": "g:a",
+      "layer": "package",
+      "name": "a"
+    },
+    {
+      "id": "g:a/a",
+      "layer": "file",
+      "name": "a/a.go",
+      "parent": "g:a"
+    },
+    {
+      "id": "g:a/a::-",
+      "layer": "decl",
+      "name": "-",
+      "parent": "g:a/a",
+      "properties": {
+        "exported": false,
+        "kind": "var",
+        "line_end": 5,
+        "line_start": 5,
+        "name": "_"
+      }
+    },
+    {
+      "id": "g:a/a::a",
+      "layer": "decl",
+      "name": "a",
+      "parent": "g:a/a",
+      "properties": {
+        "exported": true,
+        "kind": "function",
+        "line_end": 7,
+        "line_start": 7,
+        "name": "A",
+        "params": null,
+        "returns": ""
+      }
+    },
+    {
+      "id": "g:b",
+      "layer": "package",
+      "name": "b"
+    },
+    {
+      "id": "g:b/b",
+      "layer": "file",
+      "name": "b/b.go",
+      "parent": "g:b"
+    },
+    {
+      "id": "g:b/b::b",
+      "layer": "decl",
+      "name": "b",
+      "parent": "g:b/b",
+      "properties": {
+        "exported": true,
+        "kind": "function",
+        "line_end": 3,
+        "line_start": 3,
+        "name": "B",
+        "params": null,
+        "returns": ""
+      }
+    }
+  ],
+  "protocol_version": 2,
+  "scope": "domain-source",
+  "source": "tree-sitter:0.2.0"
+}

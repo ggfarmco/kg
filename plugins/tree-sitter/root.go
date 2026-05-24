@@ -36,7 +36,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if cfg.ProtocolVersion != 1 {
+			if cfg.ProtocolVersion != 2 {
 				return fmt.Errorf("unsupported protocol_version %d", cfg.ProtocolVersion)
 			}
 			if language == "" {

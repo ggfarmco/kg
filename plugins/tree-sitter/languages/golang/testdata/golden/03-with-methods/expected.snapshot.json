@@ -1,0 +1,71 @@
+{
+  "domain": "g",
+  "domain_spec": {
+    "description": "Extracted by tree-sitter (go)",
+    "id": "g",
+    "layers": [
+      "package",
+      "file",
+      "decl"
+    ]
+  },
+  "edges": [],
+  "nodes": [
+    {
+      "id": "g:input",
+      "layer": "package",
+      "name": "input"
+    },
+    {
+      "id": "g:input/types",
+      "layer": "file",
+      "name": "types.go",
+      "parent": "g:input"
+    },
+    {
+      "id": "g:input/types::reader",
+      "layer": "decl",
+      "name": "reader",
+      "parent": "g:input/types",
+      "properties": {
+        "exported": true,
+        "kind": "interface",
+        "line_end": 11,
+        "line_start": 9,
+        "name": "Reader"
+      }
+    },
+    {
+      "id": "g:input/types::repo",
+      "layer": "decl",
+      "name": "repo",
+      "parent": "g:input/types",
+      "properties": {
+        "exported": true,
+        "kind": "struct",
+        "line_end": 5,
+        "line_start": 3,
+        "name": "Repo"
+      }
+    },
+    {
+      "id": "g:input/types::save",
+      "layer": "decl",
+      "name": "save",
+      "parent": "g:input/types",
+      "properties": {
+        "exported": true,
+        "kind": "method",
+        "line_end": 7,
+        "line_start": 7,
+        "name": "Save",
+        "params": null,
+        "receiver": "Repo",
+        "returns": "error"
+      }
+    }
+  ],
+  "protocol_version": 2,
+  "scope": "domain-source",
+  "source": "tree-sitter:0.2.0"
+}
