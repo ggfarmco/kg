@@ -110,7 +110,7 @@ func newNodeGetCmd(c *cliCtx) *cobra.Command {
 }
 
 func newNodeListCmd(c *cliCtx) *cobra.Command {
-	var domain, layer string
+	var domain, layer, source string
 	var limit int
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -122,7 +122,7 @@ func newNodeListCmd(c *cliCtx) *cobra.Command {
 			}
 			defer closeFn()
 			ns, err := svc.ListNodes(cmd.Context(), graph.NodeFilter{
-				Domain: graph.DomainID(domain), Layer: layer, Limit: limit,
+				Domain: graph.DomainID(domain), Layer: layer, Source: graph.SourceID(source), Limit: limit,
 			})
 			if err != nil {
 				return err
@@ -132,6 +132,7 @@ func newNodeListCmd(c *cliCtx) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&domain, "domain", "", "filter by domain id")
 	cmd.Flags().StringVar(&layer, "layer", "", "filter by layer name")
+	cmd.Flags().StringVar(&source, "source", "", "filter by owning source id")
 	cmd.Flags().IntVar(&limit, "limit", 0, "max rows (0 = unlimited)")
 	return cmd
 }
