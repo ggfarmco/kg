@@ -21,34 +21,91 @@ If multiple domains exist and `--domain` is missing, ask the user via `AskUserQu
 
 Run these in sequence; abort with a clear error if any fail.
 
-1. **`kg` on PATH:**
-   ```bash
-   kg --version
-   ```
-   On failure: tell user "kg CLI not found. Install: cd into the kg repo and run `make install`."
+### 1. Locate the kg CLI
 
-2. **`kg.db` exists:**
-   ```bash
-   test -f "${KG_DB:-./kg.db}"
-   ```
-   On failure: "No kg.db in cwd. Run `kg init` first, then extract structural data with `kg-extractor extract ...`."
+Try each candidate in priority order; first executable wins. Run this bash block via the Bash tool:
 
-3. **Detect domain (if --domain omitted):**
-   ```bash
-   kg domain list
-   ```
-   If exactly one domain: use it. If multiple: ask the user. If zero: tell the user to extract first.
+```bash
+KG_BIN=""
+for c in \
+  "$(command -v kg 2>/dev/null || true)" \
+  "${KG_HOME:-$HOME/.config/kg}/bin/kg" \
+  "${CLAUDE_PLUGIN_ROOT}/../bin/kg" \
+  "$(pwd)/bin/kg"; do
+  if [ -n "$c" ] && [ -x "$c" ]; then KG_BIN="$c"; break; fi
+done
+echo "${KG_BIN:-NOT_FOUND}"
+```
 
-4. **Source has nodes in that domain:**
-   ```bash
-   kg node list --domain "<domain>" --layer file --source "<source>" --limit 1
-   ```
-   On empty: "Source '<source>' has no file nodes in domain '<domain>'. Did you run kg-extractor? Or did you mean a different --source?"
+- **If output is `NOT_FOUND`:** read the expected version from the plugin manifest:
 
-5. **Create scratch dir:**
-   ```bash
-   mkdir -p .kg-enrich-tmp
-   ```
+  ```bash
+  jq -r '.version' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json"
+  ```
+
+  Dispatch `AskUserQuestion`:
+  - **question:** `kg CLI is not installed. Download v<VERSION> from github.com/ggfarmco/kg/releases? (~10MB, verified by SHA-256)`
+  - **options:** `Yes, install`, `No, abort`
+
+  - On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` via Bash. If exit ≠ 0: surface the bootstrap error and abort. If exit 0: re-run the locate loop above (one retry) and proceed.
+  - On `No`: abort with `kg CLI required. Manual install: see https://github.com/ggfarmco/kg#install`.
+
+- **If output is a path:** prepend its directory to `PATH` so bundled scripts find `kg`:
+
+  ```bash
+  export PATH="$(dirname "$KG_BIN"):$PATH"
+  ```
+
+### 2. Check installed version matches plugin's expected version (managed installs only)
+
+Only when `$KG_BIN` is under `${KG_HOME:-$HOME/.config/kg}/bin/`. Skip this check otherwise (developer builds are exempt — don't pester them).
+
+```bash
+INSTALL_ROOT="${KG_HOME:-$HOME/.config/kg}"
+case "$KG_BIN" in
+  "$INSTALL_ROOT/bin/kg")
+    EXPECTED="v$(jq -r '.version' "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json")"
+    INSTALLED="$(cat "$INSTALL_ROOT/VERSION" 2>/dev/null || echo unknown)"
+    [ "$EXPECTED" = "$INSTALLED" ] || echo "VERSION_MISMATCH expected=$EXPECTED installed=$INSTALLED"
+    ;;
+esac
+```
+
+If output contains `VERSION_MISMATCH`: dispatch `AskUserQuestion`:
+- **question:** `Installed kg is <INSTALLED>; plugin needs <EXPECTED>. Upgrade?`
+- **options:** `Yes, upgrade`, `No, use current`
+- On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` (it will overwrite to the new version).
+- On `No`: continue with the current binary; warn user that some features may not work.
+
+### 3. `kg.db` exists
+
+```bash
+test -f "${KG_DB:-./kg.db}"
+```
+
+On failure: "No kg.db in cwd. Run `kg init` first, then extract structural data with `kg-extractor extract ...`."
+
+### 4. Detect domain (if --domain omitted)
+
+```bash
+kg domain list
+```
+
+If exactly one domain: use it. If multiple: ask the user via AskUserQuestion. If zero: tell the user to extract first.
+
+### 5. Source has nodes in that domain
+
+```bash
+kg node list --domain "<domain>" --layer file --source "<source>" --limit 1
+```
+
+On empty: "Source '<source>' has no file nodes in domain '<domain>'. Did you run kg-extractor? Or did you mean a different --source?"
+
+### 6. Create scratch dir
+
+```bash
+mkdir -p .kg-enrich-tmp
+```
 
 ## Phase 1 — Dump file list
 

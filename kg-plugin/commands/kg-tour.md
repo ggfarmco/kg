@@ -16,9 +16,47 @@ Standalone re-trigger of tour-builder.
 
 ## Pre-check
 
-Same first 4 checks as /kg-enrich. Plus:
-- Verify the structural source has nodes in `<domain>`.
-- If `<arch-domain>` is non-empty, verify it has at least one `layer` node. If not, warn and continue without arch.
+### 1. Locate the kg CLI
+
+Try each candidate in priority order; first executable wins:
+
+```bash
+KG_BIN=""
+for c in \
+  "$(command -v kg 2>/dev/null || true)" \
+  "${KG_HOME:-$HOME/.config/kg}/bin/kg" \
+  "${CLAUDE_PLUGIN_ROOT}/../bin/kg" \
+  "$(pwd)/bin/kg"; do
+  if [ -n "$c" ] && [ -x "$c" ]; then KG_BIN="$c"; break; fi
+done
+echo "${KG_BIN:-NOT_FOUND}"
+```
+
+If `NOT_FOUND`: offer install via `AskUserQuestion` and run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` on yes. Abort if user declines. (Same flow as `/kg-enrich` Pre-check Step 1.)
+
+If found: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
+
+### 2. `kg.db` exists
+
+```bash
+test -f "${KG_DB:-./kg.db}"
+```
+
+### 3. Verify the structural source has nodes in `<domain>`
+
+```bash
+kg node list --domain "<domain>" --layer file --source "<source>" --limit 1
+```
+
+On empty: tell user to run `/kg-enrich` first (or check `--source` argument).
+
+### 4. (Optional) If `<arch-domain>` is non-empty, verify it has at least one `layer` node
+
+```bash
+kg node list --domain "<arch-domain>" --layer layer --source kg-arch:0.1.0 --limit 1
+```
+
+If empty, warn and continue without arch.
 
 ## Workflow
 

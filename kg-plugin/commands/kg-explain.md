@@ -14,6 +14,38 @@ Explain a kg node using all available enrichment (tree-sitter structure + LLM su
 
 If empty or malformed: ask the user to provide a node ID. Suggest: `kg node list --domain <some-domain> --limit 20` to discover candidates.
 
+## Pre-check
+
+### 1. Locate the kg CLI
+
+Try each candidate in priority order; first executable wins:
+
+```bash
+KG_BIN=""
+for c in \
+  "$(command -v kg 2>/dev/null || true)" \
+  "${KG_HOME:-$HOME/.config/kg}/bin/kg" \
+  "${CLAUDE_PLUGIN_ROOT}/../bin/kg" \
+  "$(pwd)/bin/kg"; do
+  if [ -n "$c" ] && [ -x "$c" ]; then KG_BIN="$c"; break; fi
+done
+echo "${KG_BIN:-NOT_FOUND}"
+```
+
+If output is `NOT_FOUND`: dispatch `AskUserQuestion` offering to run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`. Same flow as `/kg-enrich` Pre-check Step 1 — abort if user declines.
+
+If output is a path: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
+
+(The version-mismatch check is skipped here — `/kg-explain` is read-only and works fine across compatible versions.)
+
+### 2. `kg.db` exists
+
+```bash
+test -f "${KG_DB:-./kg.db}"
+```
+
+On failure: tell user to run `kg init` and extract first.
+
 ## Workflow
 
 1. **Fetch the node with merged properties:**

@@ -17,9 +17,41 @@ Generates `docs/ONBOARDING.md` (or a user-specified path) from the kg graph.
 
 ## Pre-check
 
-- `kg --version` works
-- `<domain>` exists
-- `<tours-domain>` has at least one step (otherwise the doc would be skeletal). If empty, tell user to run /kg-enrich or /kg-tour first.
+### 1. Locate the kg CLI
+
+Try each candidate in priority order; first executable wins:
+
+```bash
+KG_BIN=""
+for c in \
+  "$(command -v kg 2>/dev/null || true)" \
+  "${KG_HOME:-$HOME/.config/kg}/bin/kg" \
+  "${CLAUDE_PLUGIN_ROOT}/../bin/kg" \
+  "$(pwd)/bin/kg"; do
+  if [ -n "$c" ] && [ -x "$c" ]; then KG_BIN="$c"; break; fi
+done
+echo "${KG_BIN:-NOT_FOUND}"
+```
+
+If `NOT_FOUND`: offer install via `AskUserQuestion` and run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` on yes. Abort if user declines. (Same flow as `/kg-enrich` Pre-check Step 1.)
+
+If found: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
+
+### 2. `<domain>` exists
+
+```bash
+kg domain get "<domain>"
+```
+
+On NOT_FOUND: abort with the domain list (`kg domain list`) for user reference.
+
+### 3. `<tours-domain>` has at least one step
+
+```bash
+kg node list --domain "<tours-domain>" --source kg-tours:0.1.0 --limit 1
+```
+
+If empty: tell user to run `/kg-enrich` or `/kg-tour` first.
 
 ## Workflow
 
