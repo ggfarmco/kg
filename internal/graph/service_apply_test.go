@@ -267,3 +267,87 @@ func TestApplyBlocksRemovalOfNodeWithForeignEdgeClaim(t *testing.T) {
 	}, graph.ApplyOptions{})
 	require.ErrorIs(t, err, graph.ErrNodeHasForeignClaims, "should block removal without ForceCascade")
 }
+
+func TestApplyAdditiveAnnotatesForeignNode(t *testing.T) {
+	svc, fs := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "a", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{{
+			ID: "d:x", Layer: "l1", Name: "x",
+			Properties: map[string]any{"a-key": "a-val"},
+		}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	res, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes: []snapshot.NodeSpec{{
+			ID: "d:x",
+			Properties: map[string]any{"b-key": "b-val"},
+		}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.NodesUpdated, "additive annotation counts as an update")
+
+	n, err := fs.GetNode(t.Context(), "d:x")
+	require.NoError(t, err)
+	require.Equal(t, graph.SourceID("a"), n.Source, "ownership unchanged")
+	require.Equal(t, "x", n.Name, "name untouched")
+	require.Equal(t, "a-val", n.Properties["a"]["a-key"])
+	require.Equal(t, "b-val", n.Properties["b"]["b-key"], "B's namespace populated")
+}
+
+func TestApplyAdditiveSkipsForeignNodeWithoutProperties(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "a", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes:      []snapshot.NodeSpec{{ID: "d:x", Layer: "l1", Name: "x"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	res, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes:          []snapshot.NodeSpec{{ID: "d:x"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 0, res.NodesUpdated)
+}
+
+func TestApplyAdditiveIsIdempotentOnForeignNode(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "a", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes:      []snapshot.NodeSpec{{ID: "d:x", Layer: "l1", Name: "x"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	snap := snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes:          []snapshot.NodeSpec{{ID: "d:x", Properties: map[string]any{"k": "v"}}},
+	}
+	res1, err := svc.Apply(t.Context(), snap, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 1, res1.NodesUpdated)
+
+	res2, err := svc.Apply(t.Context(), snap, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 0, res2.NodesUpdated, "re-applying identical properties should be a no-op")
+}
+
+func TestApplyAdditiveBareSpecOnUnknownNodeErrors(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "a", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	_, err = svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes:          []snapshot.NodeSpec{{ID: "d:ghost", Properties: map[string]any{"k": "v"}}},
+	}, graph.ApplyOptions{})
+	require.ErrorIs(t, err, graph.ErrNodeNotFound)
+}

@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "id": "myapp:graph/handler-go::serve",
+      "layer": "decl",
+      "name": "Serve",
+      "properties": { "tree-sitter:0.2.0": { "kind": "function", "line_start": 42, "line_end": 87 } }
+    },
+    {
+      "id": "myapp:graph/handler-go::route",
+      "layer": "decl",
+      "name": "Route",
+      "properties": { "tree-sitter:0.2.0": { "kind": "function", "line_start": 90, "line_end": 105 } }
+    }
+  ]
+}

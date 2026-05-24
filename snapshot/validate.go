@@ -35,8 +35,10 @@ func Validate(s *Snapshot) error {
 		if !nodeIDRE.MatchString(n.ID) {
 			return fmt.Errorf("%w: nodes[%d].id=%q", ErrInvalidNodeID, i, n.ID)
 		}
-		if n.Layer == "" || n.Name == "" {
-			return fmt.Errorf("nodes[%d]: layer and name are required", i)
+		if s.Scope != ScopeAdditive {
+			if n.Layer == "" || n.Name == "" {
+				return fmt.Errorf("nodes[%d]: layer and name are required", i)
+			}
 		}
 	}
 	for i, e := range s.Edges {

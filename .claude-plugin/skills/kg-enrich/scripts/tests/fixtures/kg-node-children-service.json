@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "id": "myapp:graph/service-go::do",
+      "layer": "decl",
+      "name": "Do",
+      "properties": { "tree-sitter:0.2.0": { "kind": "function", "line_start": 10, "line_end": 30 } }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "data": [
+    {
+      "id": "myapp:cmd/main-go",
+      "name": "main.go",
+      "layer": "file",
+      "parent_id": "myapp:cmd",
+      "source": "tree-sitter:0.2.0",
+      "properties": { "tree-sitter:0.2.0": { "path": "/abs/cmd/main.go" } }
+    },
+    {
+      "id": "myapp:internal-handler/serve-go",
+      "name": "serve.go",
+      "layer": "file",
+      "parent_id": "myapp:internal-handler",
+      "source": "tree-sitter:0.2.0",
+      "properties": { "tree-sitter:0.2.0": { "path": "/abs/internal/handler/serve.go" } }
+    }
+  ]
+}

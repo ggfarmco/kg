@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "id": "myapp:graph/handler-go",
+      "domain": "myapp",
+      "layer": "file",
+      "name": "handler.go",
+      "parent_id": "myapp:graph",
+      "source": "tree-sitter:0.2.0",
+      "properties": {
+        "tree-sitter:0.2.0": { "path": "/abs/internal/graph/handler.go" }
+      }
+    },
+    {
+      "id": "myapp:graph/service-go",
+      "domain": "myapp",
+      "layer": "file",
+      "name": "service.go",
+      "parent_id": "myapp:graph",
+      "source": "tree-sitter:0.2.0",
+      "properties": {
+        "tree-sitter:0.2.0": { "path": "/abs/internal/graph/service.go" }
+      }
+    }
+  ]
+}

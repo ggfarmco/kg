@@ -136,3 +136,71 @@ one delete + one add. Foreign-source claims survive your re-extract.
 
 See `docs/superpowers/specs/2026-05-24-kg-v2-provenance-design.md` for the
 full provenance model, `kg apply`'s diff algorithm, and conflict codes.
+
+### v3 additions
+
+- `kg apply` with `scope: additive` writes properties on foreign-owned nodes (in the writer's own namespace) — previously such writes were silently dropped. This makes the engine usable for LLM-based annotators that don't own the underlying structural nodes.
+- `kg export --domain <id> --source <id>` emits the current `(domain, source)` slice as a snapshot JSON document. Round-trips with `kg apply` for diffing or re-importing. The v3 LLM enrichment plugin uses this to give agents a baseline view of what their source has already written.
+- v3's annotation pipeline (Claude Code plugin under `.claude-plugin/`) is a separate concern documented at the end of this README; the engine changes above are usable standalone.
+
+## v3 enrichment plugin (Claude Code)
+
+The `.claude-plugin/` directory at the repo root is a Claude Code plugin that
+layers LLM-driven semantic enrichment on top of kg's structural graph. It runs
+inside any Claude Code session (CLI, IDE, web). The kg engine (the binaries
+above) is a prerequisite.
+
+### Install
+
+```sh
+# Make sure the kg CLI is on PATH (this plugin shells out to it)
+make install                       # or: go install ./cmd/kg
+
+# In Claude Code, add this repo as a plugin marketplace:
+/plugin marketplace add github:ggfarmco/kg
+/plugin install kg@kg
+```
+
+The plugin contributes four skills and three subagents.
+
+### Skills
+
+- **`/kg-enrich`** — orchestrates the full pipeline: per-decl summaries
+  (5 parallel `file-summarizer` agents) → architectural layer inference
+  (`architecture-analyzer`) → onboarding tour (`tour-builder`). One run
+  populates three derived sources: `kg-summary:0.1.0`, `kg-arch:0.1.0`,
+  `kg-tours:0.1.0`.
+- **`/kg-explain <node-id>`** — read-only Q&A about a single node using its
+  enriched properties + 1-hop neighbors.
+- **`/kg-tour [--domain X]`** — re-runs only `tour-builder` (cheaper than a
+  full `/kg-enrich`).
+- **`/kg-onboard [--output path]`** — generates `docs/ONBOARDING.md` from
+  the enriched graph.
+
+### Quick start (assumes you already have a kg.db with tree-sitter data)
+
+```sh
+# In Claude Code, with kg.db in your cwd:
+/kg-enrich
+# ... wait for batches to complete ...
+/kg-onboard
+# review docs/ONBOARDING.md
+```
+
+### Cost expectations
+
+`/kg-enrich` makes one Claude call per file-summarizer batch (~25 files per
+batch, 5 batches in parallel) plus one call each for architecture-analyzer
+and tour-builder. For a 100-file project, expect ~6 inference calls total.
+Use `--max-files N` to cap; intermediate files in `.kg-enrich-tmp/` show
+exactly what was sent.
+
+### Idempotency
+
+Re-running any skill is safe. `file-summarizer` writes under `scope: additive`
+so its properties overwrite cleanly in its own namespace. `architecture-analyzer`
+and `tour-builder` use `scope: domain-source` so re-running cleanly replaces
+the previous arch / tours.
+
+See `docs/superpowers/specs/2026-05-24-kg-v3-skill-enrichment-design.md` for
+the full design.
