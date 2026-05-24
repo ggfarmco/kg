@@ -286,10 +286,11 @@ func (s *Service) DeleteNode(ctx context.Context, id NodeID, source SourceID) er
 }
 
 type AddEdgeInput struct {
-	Source     string
-	Target     string
-	Type       string
-	Properties map[string]any
+	Source       string
+	Target       string
+	Type         string
+	Properties   map[string]any
+	WriterSource string
 }
 
 func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
@@ -301,26 +302,82 @@ func (s *Service) AddEdge(ctx context.Context, in AddEdgeInput) (*Edge, error) {
 	if in.Type == "" {
 		return nil, fmt.Errorf("edge type must not be empty")
 	}
+	if in.WriterSource == "" {
+		return nil, ErrSourceRequired
+	}
+	source, err := ParseSourceID(in.WriterSource)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := s.store.GetNode(ctx, src); err != nil {
 		return nil, err
 	}
 	if _, err := s.store.GetNode(ctx, dst); err != nil {
 		return nil, err
 	}
-	e := &Edge{
+	if err := s.ensureSource(ctx, source); err != nil {
+		return nil, err
+	}
+	now := s.now()
+	id, err := s.store.UpsertEdge(ctx, Edge{
 		SourceID:   src,
 		TargetID:   dst,
 		Type:       in.Type,
-		Properties: map[SourceID]map[string]any{},
-		Revision:   1,
-		CreatedAt:  s.now(),
-	}
-	id, err := s.store.UpsertEdge(ctx, *e)
+		Properties: nonNilNamespacedProps(source, in.Properties),
+		CreatedAt:  now,
+	})
 	if err != nil {
 		return nil, err
 	}
-	e.ID = id
-	return e, nil
+	if err := s.store.AddEdgeClaim(ctx, id, source, now); err != nil {
+		return nil, err
+	}
+	got, err := s.store.GetEdge(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	claims, err := s.store.ListEdgeClaims(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	got.Claims = make([]SourceID, 0, len(claims))
+	for _, c := range claims {
+		got.Claims = append(got.Claims, c.Source)
+	}
+	return got, nil
+}
+
+func (s *Service) AddEdgeClaim(ctx context.Context, id EdgeID, source SourceID) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	if err := s.ensureSource(ctx, source); err != nil {
+		return err
+	}
+	return s.store.AddEdgeClaim(ctx, id, source, s.now())
+}
+
+func (s *Service) RemoveEdgeClaim(ctx context.Context, id EdgeID, source SourceID) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	return s.store.InTx(ctx, func(ctx context.Context) error {
+		if err := s.store.RemoveEdgeClaim(ctx, id, source); err != nil {
+			return err
+		}
+		n, err := s.store.CountEdgeClaims(ctx, id)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return s.store.DeleteEdge(ctx, id)
+		}
+		return nil
+	})
+}
+
+func (s *Service) ListEdgeClaims(ctx context.Context, id EdgeID) ([]EdgeClaim, error) {
+	return s.store.ListEdgeClaims(ctx, id)
 }
 
 func (s *Service) DeleteEdge(ctx context.Context, id EdgeID) error {
