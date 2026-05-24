@@ -150,25 +150,45 @@ layers LLM-driven semantic enrichment on top of kg's structural graph. It runs
 inside any Claude Code session (CLI, IDE, web). The kg engine (the binaries
 above) is a prerequisite.
 
-### Install
+### Install (v0.3.1+)
 
 ```sh
-# 1. kg CLI on PATH (plugin shells out to it).
+# In Claude Code:
+/plugin marketplace add github:ggfarmco/kg
+/plugin install kg@kg-graph
+
+# Then in any project directory:
+/kg:kg-enrich
+# On first run, the plugin offers to download the kg CLI from the matching
+# GitHub release (~10MB, verified by SHA-256, installed to ~/.config/kg/).
+# Accept once, then it stays cached. The plugin offers an upgrade whenever a
+# newer plugin version is installed.
+```
+
+The plugin works on `darwin/arm64`, `darwin/amd64`, `linux/amd64`, and `linux/arm64`. Windows and Alpine/musl are not supported; build from source (Developer setup below) on those platforms.
+
+Override the install location via `KG_HOME` (defaults to `$HOME/.config/kg/`). `jq` is a prerequisite for the bootstrap script — install via `brew install jq` or `apt install jq` if absent.
+
+### Developer setup (build from source)
+
+Required only if you're hacking on kg itself or running on an unsupported platform.
+
+```sh
+# Build the engine.
 make install                       # or: go install ./cmd/kg
 
-# 2. tree-sitter extractor (produces the structural graph the plugin enriches).
+# Build the tree-sitter extractor + install its manifest.
 make build-extractor build-plugin-treesitter
 mkdir -p ~/.config/kg-extractor/plugins/tree-sitter
 cp plugins/tree-sitter/manifest.json ~/.config/kg-extractor/plugins/tree-sitter/
 cp ./bin/kg-extractor-tree-sitter ~/.config/kg-extractor/plugins/tree-sitter/
 
-# 3. In a Claude Code session, add this repo as a plugin marketplace.
+# Then in Claude Code, point the marketplace at your local checkout:
 /plugin marketplace add /absolute/path/to/this/kg/checkout
-/plugin install kg@kg
+/plugin install kg@kg-graph
 ```
 
-(If you publish kg to a GitHub remote, the marketplace can also be added as
-`/plugin marketplace add github:<org>/kg`.)
+The SKILL pre-check finds the locally-built `./bin/kg` and uses it directly — no auto-install offer is triggered for dogfooders.
 
 The plugin contributes four skills and three subagents.
 
