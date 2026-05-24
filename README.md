@@ -64,25 +64,50 @@ make migrate  # apply migrations via goose CLI to ./kg.db
 make lint     # golangci-lint
 ```
 
-## Extractors (v1)
+## Extractors (v2 — declarative + provenance)
 
-kg is a generic graph engine. To populate it from real-world inputs, use
-`kg-extractor`, a separate binary that discovers and dispatches plugins.
+kg is a generic graph engine. Extractors live as separate binaries; they
+pipe into one of two verbs depending on plugin runtime:
+
+- **Declarative (recommended)**: plugin emits one JSON snapshot on stdout;
+  `kg apply` computes diff against the previous state for `(domain, source)`
+  and applies adds/updates/removals atomically.
+- **Imperative**: plugin emits JSONL graph ops; `kg batch` runs them in one
+  transaction.
+
+Both formats share the same store; the difference is who computes the diff.
 
 ### Pipeline
 
 ```
-┌─────────────────┐       ┌─────────────────┐       ┌─────────────┐
-│   plugin        │ JSONL │  kg-extractor   │ JSONL │     kg      │
-│  (any runtime)  ├──────►│  (validator)    ├──────►│    batch    │
-└─────────────────┘       └─────────────────┘       └─────────────┘
+plugin → kg-extractor (validator) → kg apply (declarative) or kg batch (imperative)
 ```
 
-Plugins live in `~/.config/kg-extractor/plugins/<name>/` (override via
-`KG_EXTRACTOR_PLUGINS_PATH`). Each has a `manifest.json` and an executable
-(native binary) or command (`["bash", "extract.sh"]`).
+`kg-extractor` discovers plugins under `~/.config/kg-extractor/plugins/<name>/`
+(override via `KG_EXTRACTOR_PLUGINS_PATH`).
 
-### Try the bash demo
+### Source model
+
+Every mutation has a writer source. Sources are auto-registered on first
+write; `kg sources register --id ... --trust ...` lets you refine description
+and trust score. Nodes are single-owner (the source that created them);
+edges are reference-counted via `edge_claims`. An edge survives as long as
+≥1 source claims it.
+
+Properties are stored namespaced by source id:
+
+```json
+{
+  "tree-sitter:0.2.0": {"kind": "function", "line_start": 40},
+  "llm-enricher:1.0": {"summary": "Validates a slug..."}
+}
+```
+
+`kg node get <id>` shows the raw namespaced form by default;
+`--source <id>` flattens one namespace; `--merged` returns a trust-ranked
+union with a sibling `_property_sources` attribution map.
+
+### Try the bash demo (declarative)
 
 ```sh
 make build-extractor
@@ -92,22 +117,12 @@ ln -s "$(pwd)/examples/kg-extractor-plugins/bash-demo" ~/.config/kg-extractor/pl
 ./bin/kg node list --domain demoapp
 ```
 
-### Extract Go code via the tree-sitter plugin
-
-The tree-sitter plugin needs CGO; build it separately:
+### Extract Go via the tree-sitter plugin
 
 ```sh
 make build-plugin-treesitter
 mkdir -p ~/.config/kg-extractor/plugins/tree-sitter
-cat > ~/.config/kg-extractor/plugins/tree-sitter/manifest.json <<'EOF'
-{
-  "name": "tree-sitter",
-  "version": "0.1.0",
-  "description": "tree-sitter (Go)",
-  "runtime": "native",
-  "executable": "kg-extractor-tree-sitter"
-}
-EOF
+cp plugins/tree-sitter/manifest.json ~/.config/kg-extractor/plugins/tree-sitter/
 cp ./bin/kg-extractor-tree-sitter ~/.config/kg-extractor/plugins/tree-sitter/
 
 ./bin/kg-extractor extract \
@@ -116,12 +131,8 @@ cp ./bin/kg-extractor-tree-sitter ~/.config/kg-extractor/plugins/tree-sitter/
     --db ./kg.db --kg-binary ./bin/kg
 ```
 
-This produces a `package → file → decl` graph plus `imports` and intra-package
-`calls` edges. See `docs/superpowers/specs/2026-05-23-kg-v1-extractor-design.md`
-for the full contract.
+Re-running on unchanged code is a no-op. Renaming a function emits exactly
+one delete + one add. Foreign-source claims survive your re-extract.
 
-### Custom plugins
-
-Any executable that reads a JSON config on stdin and emits JSONL ops on stdout
-satisfies the contract. See `examples/kg-extractor-plugins/bash-demo/extract.sh`
-for a 10-line template.
+See `docs/superpowers/specs/2026-05-24-kg-v2-provenance-design.md` for the
+full provenance model, `kg apply`'s diff algorithm, and conflict codes.
