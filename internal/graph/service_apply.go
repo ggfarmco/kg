@@ -59,6 +59,17 @@ func (s *Service) Apply(ctx context.Context, snap snapshot.Snapshot, opts ApplyO
 		if err := s.ensureSource(ctx, source); err != nil {
 			return err
 		}
+		if scope == snapshot.ScopeDomain && !opts.ForceDomainTakeover {
+			rows, err := s.store.ListNodes(ctx, NodeFilter{Domain: domainID})
+			if err != nil {
+				return err
+			}
+			for _, n := range rows {
+				if n.Source != source {
+					return fmt.Errorf("%w: domain=%s foreign=%s", ErrDomainHasForeignWriters, domainID, n.Source)
+				}
+			}
+		}
 		if err := s.applyDomainSpec(ctx, snap.DomainSpec, source); err != nil {
 			return err
 		}

@@ -149,3 +149,38 @@ func TestApplyForeignClaimSurvivesUnclaim(t *testing.T) {
 	es, _ := fs.EdgesFrom(t.Context(), "d:a", nil)
 	require.Len(t, es, 1, "y's claim keeps the edge alive")
 }
+
+func TestApplyDomainScopeFailsWithForeignWriters(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes:      []snapshot.NodeSpec{{ID: "d:a", Layer: "l1", Name: "a"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	_, err = svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "y", Domain: "d", Scope: snapshot.ScopeDomain,
+		Nodes: []snapshot.NodeSpec{{ID: "d:b", Layer: "l1", Name: "b"}},
+	}, graph.ApplyOptions{})
+	require.ErrorIs(t, err, graph.ErrDomainHasForeignWriters)
+}
+
+func TestApplyAdditiveScopeSkipsCleanup(t *testing.T) {
+	svc, _ := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	res, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeAdditive,
+		Nodes: []snapshot.NodeSpec{{ID: "d:a", Layer: "l1", Name: "a"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 0, res.NodesRemoved, "additive scope leaves d:b alone")
+}
