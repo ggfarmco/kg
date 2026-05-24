@@ -136,3 +136,9 @@ one delete + one add. Foreign-source claims survive your re-extract.
 
 See `docs/superpowers/specs/2026-05-24-kg-v2-provenance-design.md` for the
 full provenance model, `kg apply`'s diff algorithm, and conflict codes.
+
+### v3 additions
+
+- `kg apply` with `scope: additive` writes properties on foreign-owned nodes (in the writer's own namespace) — previously such writes were silently dropped. This makes the engine usable for LLM-based annotators that don't own the underlying structural nodes.
+- `kg export --domain <id> --source <id>` emits the current `(domain, source)` slice as a snapshot JSON document. Round-trips with `kg apply` for diffing or re-importing. The v3 LLM enrichment plugin uses this to give agents a baseline view of what their source has already written.
+- v3's annotation pipeline (Claude Code plugin under `.claude-plugin/`) is a separate concern documented at the end of this README; the engine changes above are usable standalone.
