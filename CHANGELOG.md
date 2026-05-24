@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.2 — 2026-05-24
+
+### Plugin (Claude Code)
+
+- New: all four SKILL commands now auto-locate kg.db across `$KG_DB` env → repo-local `./kg.db` → global `${KG_HOME:-$HOME/.config/kg}/kg.db`. If no DB is found, the SKILL prompts via `AskUserQuestion` whether to create it locally or globally.
+- New: `/kg-enrich` detects an empty graph (`domain list` returns 0) and offers to auto-run `kg-extractor` against the current directory (default domain: `$(basename "$PWD")`, plugin: `tree-sitter`, language: `go` with override option). This makes `/kg-enrich` work end-to-end from a fresh clone with no manual `kg init` / `kg-extractor extract` steps.
+- No CLI / binary changes — release `v0.3.2` ships the same 3 binaries as `v0.3.1` (lock-step version bump for plugin manifest sync).
+
 ## v0.3.1 — 2026-05-24
 
 ### Plugin (Claude Code)

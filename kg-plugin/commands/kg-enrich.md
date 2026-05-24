@@ -78,15 +78,65 @@ If output contains `VERSION_MISMATCH`: dispatch `AskUserQuestion`:
 - On `Yes`: run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"` (it will overwrite to the new version).
 - On `No`: continue with the current binary; warn user that some features may not work.
 
-### 3. `kg.db` exists
+### 3. Locate or create kg.db
+
+Look in priority order (env override → repo-local → global):
 
 ```bash
-test -f "${KG_DB:-./kg.db}"
+KG_DB_FOUND=""
+for c in "${KG_DB:-}" "./kg.db" "${KG_HOME:-$HOME/.config/kg}/kg.db"; do
+  if [ -n "$c" ] && [ -f "$c" ]; then KG_DB_FOUND="$c"; break; fi
+done
+echo "${KG_DB_FOUND:-NOT_FOUND}"
 ```
 
-On failure: "No kg.db in cwd. Run `kg init` first, then extract structural data with `kg-extractor extract ...`."
+- **If output is a path:** `export KG_DB="$KG_DB_FOUND"` and proceed.
 
-### 4. Detect domain (if --domain omitted)
+- **If output is `NOT_FOUND`:** dispatch `AskUserQuestion`:
+  - **question:** `No kg.db found. Where to create it?`
+  - **options:**
+    - `Local — ./kg.db (this repo only; add to .gitignore)`
+    - `Global — ${KG_HOME:-$HOME/.config/kg}/kg.db (shared across all projects)`
+    - `Cancel`
+  - On `Local`: run via Bash:
+    ```bash
+    kg --db "$(pwd)/kg.db" init && export KG_DB="$(pwd)/kg.db"
+    ```
+  - On `Global`: run via Bash:
+    ```bash
+    GLOBAL_DB="${KG_HOME:-$HOME/.config/kg}/kg.db"
+    mkdir -p "$(dirname "$GLOBAL_DB")" && kg --db "$GLOBAL_DB" init && export KG_DB="$GLOBAL_DB"
+    ```
+  - On `Cancel`: abort with `Cannot proceed without kg.db. See README.md for manual setup.`
+
+### 4. Check graph has structural data; offer auto-extract if empty
+
+```bash
+DOMAIN_COUNT=$(kg --db "$KG_DB" domain list 2>/dev/null | jq -r '.data | length' || echo 0)
+echo "DOMAIN_COUNT=$DOMAIN_COUNT"
+```
+
+If `DOMAIN_COUNT=0`: dispatch `AskUserQuestion`:
+- **question:** `kg.db has no domains yet. Run kg-extractor against the current directory now? (default domain: $(basename "$(pwd)"), plugin: tree-sitter, language: go)`
+- **options:**
+  - `Yes — extract Go code`
+  - `Yes — but pick language` (then second AskUserQuestion: `go`, `typescript`, `python`)
+  - `No, I'll extract manually` (abort with: `Run: kg-extractor extract --plugin tree-sitter --language <lang> --input . --domain <id> --db "$KG_DB" --kg-binary "$KG_BIN"`)
+
+On `Yes — extract Go code`:
+```bash
+DOMAIN="$(basename "$(pwd)")"
+kg-extractor extract \
+  --plugin tree-sitter --language go \
+  --input "$(pwd)" --domain "$DOMAIN" \
+  --db "$KG_DB" --kg-binary "$KG_BIN"
+```
+
+(If user pre-specified `--domain` to `/kg-enrich`, use that value instead of basename.)
+
+If exit ≠ 0: surface the extractor error and abort. If exit 0: continue with enrichment workflow (the next step "Detect domain" now finds the freshly-extracted domain).
+
+### 5. Detect domain (if --domain omitted)
 
 ```bash
 kg domain list
@@ -94,7 +144,7 @@ kg domain list
 
 If exactly one domain: use it. If multiple: ask the user via AskUserQuestion. If zero: tell the user to extract first.
 
-### 5. Source has nodes in that domain
+### 6. Source has nodes in that domain
 
 ```bash
 kg node list --domain "<domain>" --layer file --source "<source>" --limit 1
@@ -102,7 +152,7 @@ kg node list --domain "<domain>" --layer file --source "<source>" --limit 1
 
 On empty: "Source '<source>' has no file nodes in domain '<domain>'. Did you run kg-extractor? Or did you mean a different --source?"
 
-### 6. Create scratch dir
+### 7. Create scratch dir
 
 ```bash
 mkdir -p .kg-enrich-tmp

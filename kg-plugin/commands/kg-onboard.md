@@ -48,7 +48,38 @@ Dispatch `AskUserQuestion`:
 
 If found: `export PATH="$(dirname "$KG_BIN"):$PATH"`.
 
-### 2. `<domain>` exists
+### 2. Locate or create kg.db
+
+Look in priority order (env override → repo-local → global):
+
+```bash
+KG_DB_FOUND=""
+for c in "${KG_DB:-}" "./kg.db" "${KG_HOME:-$HOME/.config/kg}/kg.db"; do
+  if [ -n "$c" ] && [ -f "$c" ]; then KG_DB_FOUND="$c"; break; fi
+done
+echo "${KG_DB_FOUND:-NOT_FOUND}"
+```
+
+- **If output is a path:** `export KG_DB="$KG_DB_FOUND"` and proceed.
+
+- **If output is `NOT_FOUND`:** dispatch `AskUserQuestion`:
+  - **question:** `No kg.db found. Where to create it?`
+  - **options:**
+    - `Local — ./kg.db (this repo only; add to .gitignore)`
+    - `Global — ${KG_HOME:-$HOME/.config/kg}/kg.db (shared across all projects)`
+    - `Cancel`
+  - On `Local`: run via Bash:
+    ```bash
+    kg --db "$(pwd)/kg.db" init && export KG_DB="$(pwd)/kg.db"
+    ```
+  - On `Global`: run via Bash:
+    ```bash
+    GLOBAL_DB="${KG_HOME:-$HOME/.config/kg}/kg.db"
+    mkdir -p "$(dirname "$GLOBAL_DB")" && kg --db "$GLOBAL_DB" init && export KG_DB="$GLOBAL_DB"
+    ```
+  - On `Cancel`: abort with `Cannot proceed without kg.db. See README.md for manual setup.`
+
+### 3. `<domain>` exists
 
 ```bash
 kg domain get "<domain>"
@@ -56,7 +87,7 @@ kg domain get "<domain>"
 
 On NOT_FOUND: abort with the domain list (`kg domain list`) for user reference.
 
-### 3. `<tours-domain>` has at least one step
+### 4. `<tours-domain>` has at least one step
 
 ```bash
 kg node list --domain "<tours-domain>" --source kg-tours:0.1.0 --limit 1
