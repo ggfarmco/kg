@@ -44,9 +44,11 @@ func TestValidateAdditiveAllowsBareNodeID(t *testing.T) {
 }
 
 func TestValidateDomainSourceStillRequiresLayerAndName(t *testing.T) {
-	err := snapshot.Validate(&snapshot.Snapshot{
-		ProtocolVersion: 2, Source: "b", Domain: "d", Scope: snapshot.ScopeDomainSource,
-		Nodes:           []snapshot.NodeSpec{{ID: "d:x"}},
-	})
-	require.Error(t, err)
+	for _, scope := range []snapshot.Scope{snapshot.ScopeDomainSource, snapshot.ScopeDomain} {
+		err := snapshot.Validate(&snapshot.Snapshot{
+			ProtocolVersion: 2, Source: "b", Domain: "d", Scope: scope,
+			Nodes:           []snapshot.NodeSpec{{ID: "d:x"}},
+		})
+		require.Error(t, err, "scope=%s should require layer+name", scope)
+	}
 }

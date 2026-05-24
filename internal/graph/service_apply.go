@@ -154,6 +154,9 @@ func (s *Service) applyNodeSpec(
 				if len(spec.Properties) == 0 {
 					return nil
 				}
+				if propsEqual(other.Properties[source], spec.Properties) {
+					return nil
+				}
 				if err := s.SetNodeProperties(ctx, id, source, spec.Properties); err != nil {
 					return err
 				}
@@ -164,6 +167,9 @@ func (s *Service) applyNodeSpec(
 		}
 		if gerr != nil && !errors.Is(gerr, ErrNodeNotFound) {
 			return gerr
+		}
+		if scope == snapshot.ScopeAdditive {
+			return fmt.Errorf("%w: id=%s (additive scope cannot create new nodes)", ErrNodeNotFound, id)
 		}
 		_, err := s.AddNode(ctx, AddNodeInput{
 			Domain: string(domainFromID(id)), Layer: spec.Layer, Name: spec.Name,
