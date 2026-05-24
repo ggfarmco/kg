@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/ggfarmco/kg/snapshot"
 	"github.com/spf13/cobra"
 )
 
@@ -108,7 +109,8 @@ func runExtraction(ctx context.Context, stdout io.Writer, stderr io.Writer, lang
 		}
 	}
 	resolver := newImportResolver(cfg.Input, pkgs)
-	return emitOps(stdout, lang.ID(), cfg.Domain, pkgs, resolver, includeExternalImports)
+	snap := buildSnapshot(lang.ID(), cfg.Domain, pkgs, resolver, includeExternalImports)
+	return snapshot.Encode(stdout, snap)
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
