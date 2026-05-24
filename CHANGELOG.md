@@ -10,7 +10,7 @@
 
 ### Release pipeline
 
-- New: `.goreleaser.yml` + `.github/workflows/release.yml` build all 4 supported platforms (`darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64`) natively on GitHub-hosted runners. Each release uploads 4 `.tar.gz` archives (containing `kg`, `kg-extractor`, `kg-extractor-tree-sitter`, plus `manifest.json`, README, LICENSE) and a single `checksums.txt`.
+- New: `.github/workflows/release.yml` — pure-bash matrix release workflow building all 4 supported platforms (`darwin/arm64`, `darwin/amd64`, `linux/amd64`, `linux/arm64`) natively on GitHub-hosted runners. Each release uploads 4 `.tar.gz` archives (containing `kg`, `kg-extractor`, `kg-extractor-tree-sitter`, plus `manifest.json`, README, LICENSE) and a single `checksums.txt`. (GoReleaser was evaluated but skipped — the `plugins/tree-sitter/` separate Go module made a pure-bash approach simpler.)
 
 ## v0.3.0 — 2026-05-24
 
