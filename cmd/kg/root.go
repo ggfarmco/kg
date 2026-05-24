@@ -28,7 +28,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 		SilenceUsage:  true,
 	}
 	root.PersistentFlags().StringVar(&c.dbPath, "db", envOr("KG_DB", "./kg.db"), "path to the SQLite database file")
-	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c))
+	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c), newSourcesCmd(c), newApplyCmd(c))
 	return root
 }
 
@@ -44,14 +44,16 @@ func openService(dbPath string) (*graph.Service, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := st.UpsertSource(context.Background(), graph.Source{
-		ID:        "manual",
-		Trust:     100,
-		FirstSeen: time.UnixMilli(0),
-		LastSeen:  time.UnixMilli(0),
-	}); err != nil {
-		_ = st.Close()
-		return nil, nil, err
+	for _, id := range []graph.SourceID{"manual", "cli"} {
+		if err := st.UpsertSource(context.Background(), graph.Source{
+			ID:        id,
+			Trust:     100,
+			FirstSeen: time.UnixMilli(0),
+			LastSeen:  time.UnixMilli(0),
+		}); err != nil {
+			_ = st.Close()
+			return nil, nil, err
+		}
 	}
 	svc := graph.NewService(st, nil)
 	return svc, func() { _ = st.Close() }, nil

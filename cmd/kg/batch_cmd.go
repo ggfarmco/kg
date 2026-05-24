@@ -305,6 +305,13 @@ func drainStream(r io.Reader, stderr io.Writer) (ops []batch.Op, lines []int, to
 	}
 }
 
+func sourceOrDefault(s string) string {
+	if s == "" {
+		return "cli"
+	}
+	return s
+}
+
 func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool, err error) {
 	switch op.Op {
 	case batch.OpDomainAdd:
@@ -312,7 +319,9 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return false, fmt.Errorf("domain.add args: %w", err)
 		}
-		_, err := svc.AddDomain(ctx, graph.AddDomainInput{ID: a.ID, Description: a.Description, Layers: a.Layers})
+		_, err := svc.AddDomain(ctx, graph.AddDomainInput{
+			ID: a.ID, Description: a.Description, Layers: a.Layers, Source: sourceOrDefault(a.Source),
+		})
 		return classifyIfNotExists(err, a.IfNotExists, graph.ErrDomainAlreadyExists)
 
 	case batch.OpNodeAdd:
@@ -322,7 +331,7 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		}
 		_, err := svc.AddNode(ctx, graph.AddNodeInput{
 			Domain: a.Domain, Layer: a.Layer, Name: a.Name,
-			ID: a.ID, Parent: a.Parent, Properties: a.Properties,
+			ID: a.ID, Parent: a.Parent, Properties: a.Properties, Source: sourceOrDefault(a.Source),
 		})
 		return classifyIfNotExists(err, a.IfNotExists, graph.ErrNodeAlreadyExists)
 
@@ -331,7 +340,9 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return false, fmt.Errorf("node.update args: %w", err)
 		}
-		_, err := svc.UpdateNode(ctx, graph.NodeID(a.ID), graph.UpdateNodeInput{Name: a.Name})
+		_, err := svc.UpdateNode(ctx, graph.NodeID(a.ID), graph.UpdateNodeInput{
+			Source: graph.SourceID(sourceOrDefault(a.Source)), Name: a.Name,
+		})
 		if err != nil {
 			return false, err
 		}
@@ -342,7 +353,7 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return false, fmt.Errorf("node.delete args: %w", err)
 		}
-		if err := svc.DeleteNode(ctx, graph.NodeID(a.ID)); err != nil {
+		if err := svc.DeleteNode(ctx, graph.NodeID(a.ID), graph.SourceID(sourceOrDefault(a.Source))); err != nil {
 			return false, err
 		}
 		return true, nil
@@ -352,7 +363,10 @@ func applyOp(ctx context.Context, svc *graph.Service, op batch.Op) (applied bool
 		if err := json.Unmarshal(op.Args, &a); err != nil {
 			return false, fmt.Errorf("edge.add args: %w", err)
 		}
-		_, err := svc.AddEdge(ctx, graph.AddEdgeInput{Source: a.Source, Target: a.Target, Type: a.Type, Properties: a.Properties})
+		_, err := svc.AddEdge(ctx, graph.AddEdgeInput{
+			Source: a.Source, Target: a.Target, Type: a.Type,
+			WriterSource: sourceOrDefault(a.WriterSource), Properties: a.Properties,
+		})
 		return classifyIfNotExists(err, a.IfNotExists, graph.ErrEdgeAlreadyExists)
 
 	case batch.OpEdgeDelete:

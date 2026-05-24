@@ -48,6 +48,26 @@ func mapError(err error) mapped {
 		return mapped{1, "EDGE_SELF_LOOP", err.Error(), ""}
 	case errors.Is(err, graph.ErrHasDependents):
 		return mapped{1, "HAS_DEPENDENTS", err.Error(), "remove children first, or use a future --cascade flag"}
+	case errors.Is(err, graph.ErrSourceNotFound):
+		return mapped{3, "SOURCE_NOT_FOUND", err.Error(), ""}
+	case errors.Is(err, graph.ErrSourceAlreadyExists):
+		return mapped{2, "SOURCE_ALREADY_EXISTS", err.Error(), "use --if-not-exists to skip silently"}
+	case errors.Is(err, graph.ErrSourceHasDependents):
+		return mapped{1, "SOURCE_HAS_DEPENDENTS", err.Error(), "delete owned nodes/claims first"}
+	case errors.Is(err, graph.ErrSourceRequired):
+		return mapped{1, "SOURCE_REQUIRED", err.Error(), "pass --source <id>"}
+	case errors.Is(err, graph.ErrInvalidSourceID):
+		return mapped{1, "INVALID_SOURCE_ID", err.Error(), ""}
+	case errors.Is(err, graph.ErrNodeOwnedByDifferentSource):
+		return mapped{2, "NODE_OWNED_BY_DIFFERENT_SOURCE", err.Error(), "another source owns this id; change yours or coordinate"}
+	case errors.Is(err, graph.ErrNodeNotOwner):
+		return mapped{1, "NODE_NOT_OWNER", err.Error(), "only the owning source can modify name/delete the node"}
+	case errors.Is(err, graph.ErrCoreFieldsImmutable):
+		return mapped{1, "CORE_FIELDS_IMMUTABLE", err.Error(), "layer/parent cannot change; delete and re-add"}
+	case errors.Is(err, graph.ErrNodeHasForeignClaims):
+		return mapped{1, "NODE_HAS_FOREIGN_CLAIMS", err.Error(), "re-run with --force-cascade to drop foreign claims, or keep the node alive"}
+	case errors.Is(err, graph.ErrDomainHasForeignWriters):
+		return mapped{1, "DOMAIN_FOREIGN_WRITERS", err.Error(), "narrow to --scope domain-source or pass --force-domain-takeover"}
 	case errors.As(err, new(*strconv.NumError)):
 		return mapped{1, "INVALID_INPUT", err.Error(), ""}
 	default:

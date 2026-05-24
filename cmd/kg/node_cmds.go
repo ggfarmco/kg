@@ -19,7 +19,7 @@ func newNodeCmdReal(c *cliCtx) *cobra.Command {
 }
 
 func newNodeAddCmd(c *cliCtx) *cobra.Command {
-	var domain, layer, name, id, parent, summary string
+	var domain, layer, name, id, parent, source, summary string
 	var ifNotExists, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "add",
@@ -30,7 +30,7 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			in := graph.AddNodeInput{Domain: domain, Layer: layer, Name: name, ID: id, Parent: parent}
+			in := graph.AddNodeInput{Domain: domain, Layer: layer, Name: name, ID: id, Parent: parent, Source: source}
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
@@ -56,6 +56,7 @@ func newNodeAddCmd(c *cliCtx) *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "human-readable name (required)")
 	cmd.Flags().StringVar(&id, "id", "", "explicit slug; if omitted, derived from name")
 	cmd.Flags().StringVar(&parent, "parent", "", "parent node id (required unless top layer)")
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
 	cmd.Flags().StringVar(&summary, "summary", "", "optional summary text")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "skip with exit 0 if the node already exists")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
@@ -133,7 +134,7 @@ func newNodeChildrenCmd(c *cliCtx) *cobra.Command {
 }
 
 func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
-	var name, summary string
+	var name, source, summary string
 	var dryRun bool
 	cmd := &cobra.Command{
 		Use:   "update <node-id>",
@@ -145,7 +146,7 @@ func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			in := graph.UpdateNodeInput{}
+			in := graph.UpdateNodeInput{Source: graph.SourceID(source)}
 			if cmd.Flags().Changed("name") {
 				in.Name = &name
 			}
@@ -171,13 +172,15 @@ func newNodeUpdateCmd(c *cliCtx) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&name, "name", "", "new name")
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
 	cmd.Flags().StringVar(&summary, "summary", "", "new summary")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
 	return cmd
 }
 
 func newNodeDeleteCmd(c *cliCtx) *cobra.Command {
-	return &cobra.Command{
+	var source string
+	cmd := &cobra.Command{
 		Use:   "delete <node-id>",
 		Args:  cobra.ExactArgs(1),
 		Short: "Delete a node",
@@ -188,10 +191,12 @@ func newNodeDeleteCmd(c *cliCtx) *cobra.Command {
 			}
 			defer closeFn()
 			id := graph.NodeID(args[0])
-			if err := svc.DeleteNode(cmd.Context(), id); err != nil {
+			if err := svc.DeleteNode(cmd.Context(), id, graph.SourceID(source)); err != nil {
 				return err
 			}
 			return writeOK(c.stdout, map[string]any{"deleted": true, "id": id})
 		},
 	}
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
+	return cmd
 }

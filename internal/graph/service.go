@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+var ErrSourceAlreadyExists = errors.New("source already exists")
+
 type Clock func() time.Time
 
 type Service struct {
@@ -458,6 +460,36 @@ func (s *Service) DeleteNodeProperties(ctx context.Context, id NodeID, source So
 	}
 	cur.UpdatedAt = s.now()
 	return s.store.UpdateNode(ctx, *cur)
+}
+
+func (s *Service) ListSources(ctx context.Context) ([]Source, error) {
+	return s.store.ListSources(ctx)
+}
+
+func (s *Service) GetSource(ctx context.Context, id SourceID) (*Source, error) {
+	return s.store.GetSource(ctx, id)
+}
+
+func (s *Service) RegisterSource(ctx context.Context, id SourceID, description string, trust int) (*Source, error) {
+	if _, err := s.store.GetSource(ctx, id); err == nil {
+		return nil, ErrSourceAlreadyExists
+	} else if !errors.Is(err, ErrSourceNotFound) {
+		return nil, err
+	}
+	now := s.now()
+	src := Source{ID: id, Description: description, Trust: trust, FirstSeen: now, LastSeen: now}
+	if err := s.store.UpsertSource(ctx, src); err != nil {
+		return nil, err
+	}
+	return &src, nil
+}
+
+func (s *Service) UpdateSource(ctx context.Context, src Source) error {
+	return s.store.UpdateSource(ctx, src)
+}
+
+func (s *Service) DeleteSource(ctx context.Context, id SourceID) error {
+	return s.store.DeleteSource(ctx, id)
 }
 
 func (s *Service) SetEdgeProperties(ctx context.Context, id EdgeID, source SourceID, props map[string]any) error {

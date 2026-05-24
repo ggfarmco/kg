@@ -32,6 +32,7 @@ type DomainAddArgs struct {
 	ID          string         `json:"id"`
 	Layers      []string       `json:"layers"`
 	Description string         `json:"description,omitempty"`
+	Source      string         `json:"source,omitempty"`
 	Properties  map[string]any `json:"properties,omitempty"`
 	IfNotExists bool           `json:"if_not_exists,omitempty"`
 }
@@ -42,6 +43,7 @@ type NodeAddArgs struct {
 	Name        string         `json:"name"`
 	ID          string         `json:"id,omitempty"`
 	Parent      string         `json:"parent,omitempty"`
+	Source      string         `json:"source,omitempty"`
 	Summary     string         `json:"summary,omitempty"`
 	Properties  map[string]any `json:"properties,omitempty"`
 	IfNotExists bool           `json:"if_not_exists,omitempty"`
@@ -49,20 +51,23 @@ type NodeAddArgs struct {
 
 type NodeUpdateArgs struct {
 	ID      string  `json:"id"`
+	Source  string  `json:"source,omitempty"`
 	Name    *string `json:"name,omitempty"`
 	Summary *string `json:"summary,omitempty"`
 }
 
 type NodeDeleteArgs struct {
-	ID string `json:"id"`
+	ID     string `json:"id"`
+	Source string `json:"source,omitempty"`
 }
 
 type EdgeAddArgs struct {
-	Source      string         `json:"source"`
-	Target      string         `json:"target"`
-	Type        string         `json:"type"`
-	Properties  map[string]any `json:"properties,omitempty"`
-	IfNotExists bool           `json:"if_not_exists,omitempty"`
+	Source       string         `json:"source"`
+	Target       string         `json:"target"`
+	Type         string         `json:"type"`
+	WriterSource string         `json:"writer_source,omitempty"`
+	Properties   map[string]any `json:"properties,omitempty"`
+	IfNotExists  bool           `json:"if_not_exists,omitempty"`
 }
 
 type EdgeDeleteArgs struct {

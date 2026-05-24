@@ -17,7 +17,7 @@ func newEdgeCmdReal(c *cliCtx) *cobra.Command {
 }
 
 func newEdgeAddCmd(c *cliCtx) *cobra.Command {
-	var typ string
+	var typ, source string
 	var ifNotExists, dryRun bool
 	cmd := &cobra.Command{
 		Use:   "add <source-id> <target-id>",
@@ -29,7 +29,7 @@ func newEdgeAddCmd(c *cliCtx) *cobra.Command {
 				return err
 			}
 			defer closeFn()
-			in := graph.AddEdgeInput{Source: args[0], Target: args[1], Type: typ}
+			in := graph.AddEdgeInput{Source: args[0], Target: args[1], Type: typ, WriterSource: source}
 			if dryRun {
 				sentinel := errors.New("dry-run rollback")
 				err := svc.InTx(cmd.Context(), func(ctx context.Context) error {
@@ -51,6 +51,7 @@ func newEdgeAddCmd(c *cliCtx) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&typ, "type", "", "edge type (required)")
+	cmd.Flags().StringVar(&source, "source", "cli", "writer source id")
 	cmd.Flags().BoolVar(&ifNotExists, "if-not-exists", false, "skip with exit 0 if the edge already exists")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate without committing")
 	_ = cmd.MarkFlagRequired("type")
