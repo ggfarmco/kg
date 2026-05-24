@@ -1,4 +1,4 @@
-.PHONY: build test gen migrate lint install clean build-extractor build-plugin-treesitter test-all e2e
+.PHONY: build test gen migrate lint install clean build-extractor build-plugin-treesitter test-all e2e test-scripts
 
 BIN := ./bin/kg
 DB  ?= ./kg.db
@@ -36,3 +36,6 @@ test-all: test
 
 e2e: build build-extractor build-plugin-treesitter
 	go test -tags=e2e -v ./e2e/...
+
+test-scripts:
+	@find .claude-plugin -name '*.test.sh' -print -exec bash {} \;

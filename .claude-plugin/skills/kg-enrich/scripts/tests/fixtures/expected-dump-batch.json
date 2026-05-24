@@ -1,0 +1,21 @@
+[
+  {
+    "node_id": "myapp:graph/handler-go",
+    "file_path": "/abs/internal/graph/handler.go",
+    "package_node_id": "myapp:graph",
+    "name": "handler.go",
+    "decls": [
+      { "node_id": "myapp:graph/handler-go::serve", "name": "Serve", "kind": "function", "line_range": [42, 87] },
+      { "node_id": "myapp:graph/handler-go::route", "name": "Route", "kind": "function", "line_range": [90, 105] }
+    ]
+  },
+  {
+    "node_id": "myapp:graph/service-go",
+    "file_path": "/abs/internal/graph/service.go",
+    "package_node_id": "myapp:graph",
+    "name": "service.go",
+    "decls": [
+      { "node_id": "myapp:graph/service-go::do", "name": "Do", "kind": "function", "line_range": [10, 30] }
+    ]
+  }
+]

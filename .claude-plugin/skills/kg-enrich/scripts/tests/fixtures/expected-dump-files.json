@@ -1,0 +1,14 @@
+[
+  {
+    "node_id": "myapp:graph/handler-go",
+    "file_path": "/abs/internal/graph/handler.go",
+    "package_node_id": "myapp:graph",
+    "name": "handler.go"
+  },
+  {
+    "node_id": "myapp:graph/service-go",
+    "file_path": "/abs/internal/graph/service.go",
+    "package_node_id": "myapp:graph",
+    "name": "service.go"
+  }
+]
