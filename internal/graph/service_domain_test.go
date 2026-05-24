@@ -14,6 +14,15 @@ func newService(t *testing.T) (*graph.Service, *testutil.FakeStore) {
 	t.Helper()
 	fs := testutil.NewFakeStore()
 	clock := func() time.Time { return time.UnixMilli(1_700_000_000_000) }
+	ctx := t.Context()
+	now := clock()
+	err := fs.UpsertSource(ctx, graph.Source{
+		ID:        "manual",
+		Trust:     100,
+		FirstSeen: now,
+		LastSeen:  now,
+	})
+	require.NoError(t, err)
 	return graph.NewService(fs, clock), fs
 }
 
