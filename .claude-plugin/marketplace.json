@@ -1,12 +1,15 @@
 {
   "name": "kg",
-  "owner": { "name": "ggfarmco" },
+  "metadata": {
+    "description": "LLM-driven enrichment over kg structural extraction. Generates per-decl summaries, semantic edges, architectural layers, and pedagogical tours for codebases ingested via the kg engine."
+  },
+  "owner": {
+    "name": "ggfarmco"
+  },
   "plugins": [
     {
       "name": "kg",
-      "source": "./kg-plugin",
-      "description": "LLM-driven enrichment over kg structural extraction. Generates per-decl summaries, semantic edges, architectural layers, and pedagogical tours for codebases ingested via the kg engine.",
-      "version": "0.3.0"
+      "source": "./kg-plugin"
     }
   ]
 }
