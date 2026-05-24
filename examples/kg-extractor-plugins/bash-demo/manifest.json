@@ -1,8 +1,11 @@
 {
   "name": "bash-demo",
-  "version": "0.1.0",
-  "description": "Trivial bash plugin emitting a fixed mini-graph for contract testing",
-  "runtime": "command",
+  "version": "0.2.0",
+  "description": "Trivial bash plugin emitting a fixed mini-graph snapshot",
+  "runtime": "declarative-command",
   "command": ["bash", "extract.sh"],
-  "supported_layers": ["root", "item"]
+  "source_id": "bash-demo:0.2.0",
+  "trust": 100,
+  "supported_layers": ["root", "item"],
+  "supported_scopes": ["domain-source"]
 }
