@@ -153,13 +153,22 @@ above) is a prerequisite.
 ### Install
 
 ```sh
-# Make sure the kg CLI is on PATH (this plugin shells out to it)
+# 1. kg CLI on PATH (plugin shells out to it).
 make install                       # or: go install ./cmd/kg
 
-# In Claude Code, add this repo as a plugin marketplace:
-/plugin marketplace add github:ggfarmco/kg
+# 2. tree-sitter extractor (produces the structural graph the plugin enriches).
+make build-extractor build-plugin-treesitter
+mkdir -p ~/.config/kg-extractor/plugins/tree-sitter
+cp plugins/tree-sitter/manifest.json ~/.config/kg-extractor/plugins/tree-sitter/
+cp ./bin/kg-extractor-tree-sitter ~/.config/kg-extractor/plugins/tree-sitter/
+
+# 3. In a Claude Code session, add this repo as a plugin marketplace.
+/plugin marketplace add /absolute/path/to/this/kg/checkout
 /plugin install kg@kg
 ```
+
+(If you publish kg to a GitHub remote, the marketplace can also be added as
+`/plugin marketplace add github:<org>/kg`.)
 
 The plugin contributes four skills and three subagents.
 

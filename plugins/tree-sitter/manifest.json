@@ -1,0 +1,9 @@
+{
+  "name": "tree-sitter",
+  "version": "0.2.0",
+  "description": "tree-sitter (Go) declarative",
+  "runtime": "declarative-native",
+  "executable": "kg-extractor-tree-sitter",
+  "source_id": "tree-sitter:0.2.0",
+  "trust": 100
+}

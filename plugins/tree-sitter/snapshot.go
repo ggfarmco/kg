@@ -36,8 +36,13 @@ func buildSnapshot(language, domain string, pkgs []*packageInfo, resolver *impor
 		for _, f := range p.Files {
 			fileSlug := p.Slug + "/" + f.BasenameSlug
 			fileID := domain + ":" + fileSlug
+			fileProps := map[string]any{"rel_path": f.RelPath}
+			if f.AbsPath != "" {
+				fileProps["path"] = f.AbsPath
+			}
 			snap.Nodes = append(snap.Nodes, snapshot.NodeSpec{
 				ID: fileID, Layer: "file", Parent: pkgID, Name: f.RelPath,
+				Properties: fileProps,
 			})
 			for _, d := range f.Decls {
 				declID := fileID + "::" + d.NameSlug
