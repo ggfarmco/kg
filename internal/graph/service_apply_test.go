@@ -85,3 +85,67 @@ func TestApplyRemovesNodesNotInSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, res.NodesRemoved)
 }
+
+func TestApplyAddsEdgesAndClaims(t *testing.T) {
+	svc, fs := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	es, err := fs.EdgesFrom(t.Context(), "d:a", nil)
+	require.NoError(t, err)
+	require.Len(t, es, 1)
+}
+
+func TestApplyRemovesUnclaimedEdgesAndGCs(t *testing.T) {
+	svc, fs := newService(t)
+	base := snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}
+	_, err := svc.Apply(t.Context(), base, graph.ApplyOptions{})
+	require.NoError(t, err)
+
+	base.Edges = nil
+	res, err := svc.Apply(t.Context(), base, graph.ApplyOptions{})
+	require.NoError(t, err)
+	require.Equal(t, 1, res.ClaimsRemoved)
+	require.Equal(t, 1, res.EdgesGC)
+	es, _ := fs.EdgesFrom(t.Context(), "d:a", nil)
+	require.Empty(t, es)
+}
+
+func TestApplyForeignClaimSurvivesUnclaim(t *testing.T) {
+	svc, fs := newService(t)
+	_, err := svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		DomainSpec: &snapshot.DomainSpec{ID: "d", Layers: []string{"l1"}},
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{{Src: "d:a", Target: "d:b", Type: "imports"}},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	_, err = svc.AddEdge(t.Context(), graph.AddEdgeInput{Source: "d:a", Target: "d:b", Type: "imports", WriterSource: "y"})
+	require.NoError(t, err)
+
+	_, err = svc.Apply(t.Context(), snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: snapshot.ScopeDomainSource,
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "l1", Name: "a"}, {ID: "d:b", Layer: "l1", Name: "b"},
+		},
+		Edges: []snapshot.EdgeSpec{},
+	}, graph.ApplyOptions{})
+	require.NoError(t, err)
+	es, _ := fs.EdgesFrom(t.Context(), "d:a", nil)
+	require.Len(t, es, 1, "y's claim keeps the edge alive")
+}

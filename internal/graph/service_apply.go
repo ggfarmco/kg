@@ -226,7 +226,66 @@ func (s *Service) applyCleanup(
 	return nil
 }
 
-func (s *Service) applyEdges(_ context.Context, _ snapshot.Snapshot, _ SourceID, _ *ApplyResult) error {
+func (s *Service) applyEdges(ctx context.Context, snap snapshot.Snapshot, source SourceID, res *ApplyResult) error {
+	prevClaimedIDs, err := s.store.EdgeIDsClaimedBy(ctx, source)
+	if err != nil {
+		return err
+	}
+	prevClaimed := make(map[EdgeID]struct{}, len(prevClaimedIDs))
+	for _, id := range prevClaimedIDs {
+		prevClaimed[id] = struct{}{}
+	}
+
+	now := s.now()
+	for _, e := range snap.Edges {
+		src := NodeID(e.Src)
+		dst := NodeID(e.Target)
+		if _, err := s.store.GetNode(ctx, src); err != nil {
+			return fmt.Errorf("edges[]: source: %w", err)
+		}
+		if _, err := s.store.GetNode(ctx, dst); err != nil {
+			return fmt.Errorf("edges[]: target: %w", err)
+		}
+		id, err := s.store.UpsertEdge(ctx, Edge{
+			SourceID:   src,
+			TargetID:   dst,
+			Type:       e.Type,
+			Properties: nonNilNamespacedProps(source, e.Properties),
+			CreatedAt:  now,
+		})
+		if err != nil {
+			return err
+		}
+		if _, already := prevClaimed[id]; !already {
+			res.EdgesAdded++
+		}
+		if err := s.store.AddEdgeClaim(ctx, id, source, now); err != nil {
+			return err
+		}
+		if _, already := prevClaimed[id]; !already {
+			res.ClaimsAdded++
+		}
+		delete(prevClaimed, id)
+	}
+
+	if snap.Scope != snapshot.ScopeAdditive {
+		for id := range prevClaimed {
+			if err := s.store.RemoveEdgeClaim(ctx, id, source); err != nil {
+				return err
+			}
+			res.ClaimsRemoved++
+			n, err := s.store.CountEdgeClaims(ctx, id)
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				if err := s.store.DeleteEdge(ctx, id); err != nil {
+					return err
+				}
+				res.EdgesGC++
+			}
+		}
+	}
 	return nil
 }
 
