@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/ggfarmco/kg/internal/graph"
 )
@@ -68,6 +69,10 @@ func mapError(err error) mapped {
 		return mapped{1, "NODE_HAS_FOREIGN_CLAIMS", err.Error(), "re-run with --force-cascade to drop foreign claims, or keep the node alive"}
 	case errors.Is(err, graph.ErrDomainHasForeignWriters):
 		return mapped{1, "DOMAIN_FOREIGN_WRITERS", err.Error(), "narrow to --scope domain-source or pass --force-domain-takeover"}
+	case strings.HasPrefix(err.Error(), "SOURCE_MISMATCH"):
+		return mapped{1, "SOURCE_MISMATCH", err.Error(), ""}
+	case strings.HasPrefix(err.Error(), "DOMAIN_MISMATCH"):
+		return mapped{1, "DOMAIN_MISMATCH", err.Error(), ""}
 	case errors.As(err, new(*strconv.NumError)):
 		return mapped{1, "INVALID_INPUT", err.Error(), ""}
 	default:
