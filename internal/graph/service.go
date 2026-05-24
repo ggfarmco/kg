@@ -421,3 +421,63 @@ func nonNilProps(m map[string]any) map[string]any {
 	}
 	return out
 }
+
+func (s *Service) SetNodeProperties(ctx context.Context, id NodeID, source SourceID, props map[string]any) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	if err := s.ensureSource(ctx, source); err != nil {
+		return err
+	}
+	cur, err := s.store.GetNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if cur.Properties == nil {
+		cur.Properties = map[SourceID]map[string]any{}
+	}
+	copy := make(map[string]any, len(props))
+	for k, v := range props {
+		copy[k] = v
+	}
+	cur.Properties[source] = copy
+	cur.UpdatedAt = s.now()
+	return s.store.UpdateNode(ctx, *cur)
+}
+
+func (s *Service) DeleteNodeProperties(ctx context.Context, id NodeID, source SourceID) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	cur, err := s.store.GetNode(ctx, id)
+	if err != nil {
+		return err
+	}
+	if cur.Properties != nil {
+		delete(cur.Properties, source)
+	}
+	cur.UpdatedAt = s.now()
+	return s.store.UpdateNode(ctx, *cur)
+}
+
+func (s *Service) SetEdgeProperties(ctx context.Context, id EdgeID, source SourceID, props map[string]any) error {
+	if source == "" {
+		return ErrSourceRequired
+	}
+	if err := s.ensureSource(ctx, source); err != nil {
+		return err
+	}
+	cur, err := s.store.GetEdge(ctx, id)
+	if err != nil {
+		return err
+	}
+	if cur.Properties == nil {
+		cur.Properties = map[SourceID]map[string]any{}
+	}
+	copy := make(map[string]any, len(props))
+	for k, v := range props {
+		copy[k] = v
+	}
+	cur.Properties[source] = copy
+	return s.store.UpdateEdgeProperties(ctx, id, cur.Properties)
+}

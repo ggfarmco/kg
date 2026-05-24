@@ -193,3 +193,48 @@ func TestDeleteNodeRequiresOwner(t *testing.T) {
 	err = svc.DeleteNode(t.Context(), n.ID, "b")
 	require.ErrorIs(t, err, graph.ErrNodeNotOwner)
 }
+
+func TestSetNodePropertiesReplacesOnlyOwnNamespace(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	n, err := svc.AddNode(t.Context(), graph.AddNodeInput{
+		Domain: "cars", Layer: "system", Name: "pt", Source: "a",
+		Properties: map[string]any{"x": float64(1)},
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, svc.SetNodeProperties(t.Context(), n.ID, "b", map[string]any{"y": float64(2)}))
+
+	updated, err := svc.GetNode(t.Context(), n.ID)
+	require.NoError(t, err)
+	require.Equal(t, float64(1), updated.Properties["a"]["x"])
+	require.Equal(t, float64(2), updated.Properties["b"]["y"])
+}
+
+func TestSetNodePropertiesReplaceWithinNamespace(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	n, _ := svc.AddNode(t.Context(), graph.AddNodeInput{
+		Domain: "cars", Layer: "system", Name: "pt", Source: "a",
+		Properties: map[string]any{"x": float64(1), "y": float64(2)},
+	})
+	require.NoError(t, svc.SetNodeProperties(t.Context(), n.ID, "a", map[string]any{"z": float64(3)}))
+	updated, _ := svc.GetNode(t.Context(), n.ID)
+	require.NotContains(t, updated.Properties["a"], "x")
+	require.NotContains(t, updated.Properties["a"], "y")
+	require.Equal(t, float64(3), updated.Properties["a"]["z"])
+}
+
+func TestDeleteNodePropertiesRemovesOnlyOwnNamespace(t *testing.T) {
+	svc, _ := newService(t)
+	seedCarsDomain(t, svc)
+	n, _ := svc.AddNode(t.Context(), graph.AddNodeInput{
+		Domain: "cars", Layer: "system", Name: "pt", Source: "a",
+		Properties: map[string]any{"x": float64(1)},
+	})
+	require.NoError(t, svc.SetNodeProperties(t.Context(), n.ID, "b", map[string]any{"y": float64(2)}))
+	require.NoError(t, svc.DeleteNodeProperties(t.Context(), n.ID, "a"))
+	updated, _ := svc.GetNode(t.Context(), n.ID)
+	require.NotContains(t, updated.Properties, graph.SourceID("a"))
+	require.Equal(t, float64(2), updated.Properties["b"]["y"])
+}
