@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.4 — 2026-05-31
+
+### Engine / CLI
+
+- New: `kg version` (and `kg --version`) report the build version in the standard `{ok,data}` JSON envelope. The version is injected at build time via `-ldflags -X main.version` (the release workflow passes the pushed tag), falling back to `git describe` for local builds and `debug.ReadBuildInfo` / `dev` when unset. Makes the plugin's version-mismatch check diagnosable.
+
 ## v0.3.3 — 2026-05-31
 
 ### Engine / extractor
