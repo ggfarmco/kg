@@ -20,7 +20,11 @@
       "id": "g:a/a",
       "layer": "file",
       "name": "a/a.go",
-      "parent": "g:a"
+      "parent": "g:a",
+      "properties": {
+        "path": "\u003cINPUT\u003e/a/a.go",
+        "rel_path": "a/a.go"
+      }
     },
     {
       "id": "g:a/a::-",
@@ -59,7 +63,11 @@
       "id": "g:b/b",
       "layer": "file",
       "name": "b/b.go",
-      "parent": "g:b"
+      "parent": "g:b",
+      "properties": {
+        "path": "\u003cINPUT\u003e/b/b.go",
+        "rel_path": "b/b.go"
+      }
     },
     {
       "id": "g:b/b::b",

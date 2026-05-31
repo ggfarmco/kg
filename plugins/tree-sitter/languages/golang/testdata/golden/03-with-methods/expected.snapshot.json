@@ -20,7 +20,11 @@
       "id": "g:input/types",
       "layer": "file",
       "name": "types.go",
-      "parent": "g:input"
+      "parent": "g:input",
+      "properties": {
+        "path": "\u003cINPUT\u003e/types.go",
+        "rel_path": "types.go"
+      }
     },
     {
       "id": "g:input/types::reader",

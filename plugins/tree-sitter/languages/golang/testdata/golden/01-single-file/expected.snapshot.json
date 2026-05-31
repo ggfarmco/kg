@@ -26,7 +26,11 @@
       "id": "g:input/main",
       "layer": "file",
       "name": "main.go",
-      "parent": "g:input"
+      "parent": "g:input",
+      "properties": {
+        "path": "\u003cINPUT\u003e/main.go",
+        "rel_path": "main.go"
+      }
     },
     {
       "id": "g:input/main::hello",
