@@ -2,10 +2,12 @@
 
 BIN := ./bin/kg
 DB  ?= ./kg.db
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+LDFLAGS := -X main.version=$(VERSION)
 
 build:
 	@mkdir -p bin
-	go build -o $(BIN) ./cmd/kg
+	go build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/kg
 
 test:
 	go test ./...

@@ -27,7 +27,9 @@ jobs:
           go-version-file: go.mod
 
       - name: Build native binaries
-        run: make build build-extractor build-plugin-treesitter
+        env:
+          TAG: ${{ github.ref_name }}
+        run: make build build-extractor build-plugin-treesitter VERSION="$TAG"
 
       - name: Verify binaries are runnable
         run: |

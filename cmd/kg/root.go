@@ -28,7 +28,7 @@ func newRootCmd(c *cliCtx) *cobra.Command {
 		SilenceUsage:  true,
 	}
 	root.PersistentFlags().StringVar(&c.dbPath, "db", envOr("KG_DB", "./kg.db"), "path to the SQLite database file")
-	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c), newSourcesCmd(c), newApplyCmd(c), newExportCmd(c))
+	root.AddCommand(newInitCmd(c), newDomainCmd(c), newNodeCmd(c), newEdgeCmd(c), newBatchCmd(c), newSourcesCmd(c), newApplyCmd(c), newExportCmd(c), newVersionCmd(c))
 	return root
 }
 
@@ -67,6 +67,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	if wantsHelpJSON(args) {
 		_ = writeOK(stdout, commandTree(cmd))
+		return 0
+	}
+
+	if wantsVersion(args) {
+		_ = writeOK(stdout, map[string]string{"version": resolveVersion()})
 		return 0
 	}
 
