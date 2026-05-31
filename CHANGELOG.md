@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.3 — 2026-05-31
+
+### Engine / extractor
+
+- Fix: the tree-sitter Go extractor lowercases identifiers when deriving decl slugs, so case-distinct declarations in one file (an exported method plus the unexported sqlc query const of the same name, or a package-level func plus a same-named method) collapsed to a single decl id. The duplicate nodes broke `kg apply` with `NODE_EXISTS`, which in turn broke `/kg-enrich` on any project using sqlc-generated code. Colliding decls now get a `-<kind>` suffix (then a numeric tiebreaker) so every decl id is unique.
+- Hardening: `snapshot.Validate` now rejects duplicate node ids, so any extractor emitting a collision fails fast with a clear error instead of deep inside `kg apply`.
+
 ## v0.3.2 — 2026-05-24
 
 ### Plugin (Claude Code)
