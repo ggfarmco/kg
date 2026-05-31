@@ -43,6 +43,17 @@ func TestValidateAdditiveAllowsBareNodeID(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidateRejectsDuplicateNodeID(t *testing.T) {
+	err := snapshot.Validate(&snapshot.Snapshot{
+		ProtocolVersion: 2, Source: "x", Domain: "d", Scope: "domain-source",
+		Nodes: []snapshot.NodeSpec{
+			{ID: "d:a", Layer: "package", Name: "a"},
+			{ID: "d:a", Layer: "package", Name: "a"},
+		},
+	})
+	require.ErrorIs(t, err, snapshot.ErrDuplicateNodeID)
+}
+
 func TestValidateDomainSourceStillRequiresLayerAndName(t *testing.T) {
 	for _, scope := range []snapshot.Scope{snapshot.ScopeDomainSource, snapshot.ScopeDomain} {
 		err := snapshot.Validate(&snapshot.Snapshot{

@@ -69,6 +69,7 @@ func (a *declAccess) persist() []Decl {
 	for _, d := range a.decls {
 		out = append(out, Decl{NameSlug: d.NameSlug, Properties: d.Properties})
 	}
+	disambiguateDecls(out)
 	return out
 }
 

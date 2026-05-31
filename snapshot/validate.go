@@ -10,6 +10,7 @@ var (
 	ErrProtocolVersion = errors.New("unsupported protocol_version (expected 2)")
 	ErrUnknownScope    = errors.New("unknown scope")
 	ErrInvalidNodeID   = errors.New("invalid node id (must match kg slug grammar)")
+	ErrDuplicateNodeID = errors.New("duplicate node id")
 	ErrMissingSource   = errors.New("source is required")
 	ErrMissingDomain   = errors.New("domain is required")
 )
@@ -31,10 +32,15 @@ func Validate(s *Snapshot) error {
 	default:
 		return fmt.Errorf("%w: %q", ErrUnknownScope, s.Scope)
 	}
+	seen := make(map[string]struct{}, len(s.Nodes))
 	for i, n := range s.Nodes {
 		if !nodeIDRE.MatchString(n.ID) {
 			return fmt.Errorf("%w: nodes[%d].id=%q", ErrInvalidNodeID, i, n.ID)
 		}
+		if _, dup := seen[n.ID]; dup {
+			return fmt.Errorf("%w: nodes[%d].id=%q", ErrDuplicateNodeID, i, n.ID)
+		}
+		seen[n.ID] = struct{}{}
 		if s.Scope != ScopeAdditive {
 			if n.Layer == "" || n.Name == "" {
 				return fmt.Errorf("nodes[%d]: layer and name are required", i)
